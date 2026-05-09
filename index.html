@@ -295,22 +295,35 @@ body{background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt}
         <label style="display:block;margin-bottom:7px;font-size:12px;font-weight:500;color:var(--text2)">Mes</label>
         <div class="mes-grid" id="mes-grid"></div>
       </div>
-      <div class="xml-drop" id="xml-drop" onclick="document.getElementById('xml-inp').click()" ondragover="dOv(event)" ondrop="dDrop(event)" ondragleave="document.getElementById('xml-drop').classList.remove('drag')">
-        <div style="font-size:26px;margin-bottom:6px">📂</div>
-        <h3>Arrastra los XML del mes</h3>
-        <p>Emitidos y recibidos · Múltiples archivos · CFDI v4.0</p>
-        <input type="file" id="xml-inp" accept=".xml" multiple onchange="handleXML(event)">
-      </div>
-      <div id="xml-chips" class="xml-chips" style="display:none"></div>
-      <div id="xml-cnts" class="xml-counts" style="display:none">
-        <div class="xc"><span id="ci" style="color:var(--accent)">0</span><span style="color:var(--text2)">Ingresos</span></div>
-        <div class="xc"><span id="ce" style="color:var(--warn)">0</span><span style="color:var(--text2)">Gastos</span></div>
-        <div class="xc"><span id="cp">0</span><span style="color:var(--text2)">Pagos</span></div>
-        <div class="xc"><span id="cerr" style="color:var(--danger)">0</span><span style="color:var(--text2)">Errores</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px">
+        <!-- EMITIDOS -->
+        <div>
+          <label style="display:block;font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px;font-family:var(--mono)">↑ XML EMITIDOS (ingresos)</label>
+          <div class="xml-drop" id="xml-drop-e" onclick="document.getElementById('xml-inp-e').click()" ondragover="dOv(event,'xml-drop-e')" ondrop="dDropE(event)" ondragleave="document.getElementById('xml-drop-e').classList.remove('drag')">
+            <div style="font-size:22px;margin-bottom:5px">📤</div>
+            <h3>CFDI que emitió el cliente</h3>
+            <p>Facturas de ingresos emitidas por el contribuyente</p>
+            <input type="file" id="xml-inp-e" accept=".xml" multiple onchange="handleXMLEmit(event)">
+          </div>
+          <div id="xml-chips-e" class="xml-chips" style="display:none;margin-top:8px"></div>
+          <div id="xml-cnt-e" style="display:none;margin-top:6px;font-size:12px;font-family:var(--mono);color:var(--accent)"></div>
+        </div>
+        <!-- RECIBIDOS -->
+        <div>
+          <label style="display:block;font-size:12px;font-weight:600;color:var(--warn);margin-bottom:6px;font-family:var(--mono)">↓ XML RECIBIDOS (gastos)</label>
+          <div class="xml-drop" id="xml-drop-r" onclick="document.getElementById('xml-inp-r').click()" ondragover="dOv(event,'xml-drop-r')" ondrop="dDropR(event)" ondragleave="document.getElementById('xml-drop-r').classList.remove('drag')" style="border-color:rgba(230,126,34,.4)">
+            <div style="font-size:22px;margin-bottom:5px">📥</div>
+            <h3>CFDI que recibió el cliente</h3>
+            <p>Gastos, compras y complementos de pago</p>
+            <input type="file" id="xml-inp-r" accept=".xml" multiple onchange="handleXMLRecib(event)">
+          </div>
+          <div id="xml-chips-r" class="xml-chips" style="display:none;margin-top:8px"></div>
+          <div id="xml-cnt-r" style="display:none;margin-top:6px;font-size:12px;font-family:var(--mono);color:var(--warn)"></div>
+        </div>
       </div>
       <div id="btns-proceso" style="display:none;gap:9px;margin-top:12px">
         <button class="btn btn-primary" onclick="procesar()">▶ Calcular impuestos</button>
-        <button class="btn" onclick="limpiarXML()">Limpiar</button>
+        <button class="btn" onclick="limpiarXML()">Limpiar todo</button>
       </div>
       <div id="resultados" style="display:none;margin-top:20px"></div>
     </div>
@@ -408,7 +421,7 @@ function pct(n){return(Number(n||0)*100).toFixed(1)+'%';}
 // ── STATE ──────────────────────────────────────────────
 window._clientes = [];
 window._historial = [];
-let xmlFiles=[],cliActivo=null,mesActivo=null,regActivo=null,detIdx=null,lastRes=null;
+let cliActivo=null,mesActivo=null,regActivo=null,detIdx=null,lastRes=null;
 
 function toast(msg, tipo='ok'){
   const t=document.getElementById('toast');
@@ -575,7 +588,7 @@ function onCliChange(){
     tabsDiv.style.display='block';regActivo=fisc[0].code;
     document.getElementById('reg-tabs-inner').innerHTML=fisc.map(r=>`<button class="btn btn-sm ${r.code===regActivo?'btn-primary':''}" id="rt-${r.code}" onclick="selReg('${r.code}')">${r.l}</button>`).join('');
   }else{tabsDiv.style.display='none';regActivo=fisc[0]?.code||null;}
-  renderMesGrid();limpiarXML();document.getElementById('resultados').style.display='none';
+  renderMesGrid();limpiarXML();document.getElementById('resultados').style.display='none';document.getElementById('btns-proceso').style.display='none';
 }
 function selReg(code){
   regActivo=code;
@@ -591,21 +604,49 @@ function renderMesGrid(){
 function selMes(n){mesActivo=n;renderMesGrid();}
 
 // ── XML ───────────────────────────────────────────────
-function dOv(e){e.preventDefault();document.getElementById('xml-drop').classList.add('drag');}
-function dDrop(e){e.preventDefault();document.getElementById('xml-drop').classList.remove('drag');loadXMLRaw([...e.dataTransfer.files].filter(f=>f.name.toLowerCase().endsWith('.xml')));}
-function handleXML(e){loadXMLRaw([...e.target.files]);}
-function loadXMLRaw(files){let p=files.length;if(!p)return;files.forEach(f=>{const r=new FileReader();r.onload=e=>{xmlFiles.push({name:f.name,text:e.target.result});if(--p===0)renderXMLList();};r.readAsText(f,'UTF-8');});}
-function limpiarXML(){xmlFiles=[];document.getElementById('xml-chips').style.display='none';document.getElementById('xml-cnts').style.display='none';document.getElementById('btns-proceso').style.display='none';document.getElementById('xml-inp').value='';}
-function renderXMLList(){
-  const ps=xmlFiles.map(f=>parseXML(f.text,f.name));
-  document.getElementById('ci').textContent=ps.filter(x=>!x.err&&x.tipo==='I').length;
-  document.getElementById('ce').textContent=ps.filter(x=>!x.err&&x.tipo==='E').length;
-  document.getElementById('cp').textContent=ps.filter(x=>!x.err&&x.tipo==='P').length;
-  document.getElementById('cerr').textContent=ps.filter(x=>x.err).length;
-  document.getElementById('xml-cnts').style.display='flex';
-  const w=document.getElementById('xml-chips');w.style.display='grid';
-  w.innerHTML=ps.map(x=>`<div class="chip ${x.err?'err':x.tipo==='I'?'i':'e'}" title="${x.name}">${x.err?'⚠ ':x.tipo==='I'?'↑ ':'↓ '}${x.name.replace('.xml','').substring(0,22)}</div>`).join('');
-  document.getElementById('btns-proceso').style.display='flex';
+// Separate storage for emitidos and recibidos
+let xmlEmitidos = [], xmlRecibidos = [];
+
+function dOv(e, dropId){e.preventDefault();document.getElementById(dropId||'xml-drop-e').classList.add('drag');}
+function dDropE(e){e.preventDefault();document.getElementById('xml-drop-e').classList.remove('drag');loadXMLEmit([...e.dataTransfer.files].filter(f=>f.name.toLowerCase().endsWith('.xml')));}
+function dDropR(e){e.preventDefault();document.getElementById('xml-drop-r').classList.remove('drag');loadXMLRecib([...e.dataTransfer.files].filter(f=>f.name.toLowerCase().endsWith('.xml')));}
+function handleXMLEmit(e){loadXMLEmit([...e.target.files]);}
+function handleXMLRecib(e){loadXMLRecib([...e.target.files]);}
+
+function loadXMLEmit(files){
+  let p=files.length;if(!p)return;
+  files.forEach(f=>{const r=new FileReader();r.onload=e=>{xmlEmitidos.push({name:f.name,text:e.target.result});if(--p===0)renderXMLChips('e');};r.readAsText(f,'UTF-8');});
+}
+function loadXMLRecib(files){
+  let p=files.length;if(!p)return;
+  files.forEach(f=>{const r=new FileReader();r.onload=e=>{xmlRecibidos.push({name:f.name,text:e.target.result});if(--p===0)renderXMLChips('r');};r.readAsText(f,'UTF-8');});
+}
+
+function renderXMLChips(tipo){
+  const files = tipo==='e' ? xmlEmitidos : xmlRecibidos;
+  const chipsId = 'xml-chips-'+tipo;
+  const cntId = 'xml-cnt-'+tipo;
+  const w=document.getElementById(chipsId);
+  w.style.display='grid';
+  w.innerHTML=files.map(f=>{
+    const x=parseXML(f.text,f.name);
+    return `<div class="chip ${x.err?'err':'i'}" title="${f.name}">${x.err?'⚠ ':'✓ '}${f.name.replace('.xml','').substring(0,20)}</div>`;
+  }).join('');
+  document.getElementById(cntId).style.display='block';
+  document.getElementById(cntId).textContent = `${files.length} archivo${files.length!==1?'s':''} cargado${files.length!==1?'s':''}`;
+  // Show calculate button if at least emitidos loaded
+  if(xmlEmitidos.length > 0){
+    document.getElementById('btns-proceso').style.display='flex';
+  }
+}
+
+function limpiarXML(){
+  xmlEmitidos=[];xmlRecibidos=[];
+  ['xml-chips-e','xml-chips-r'].forEach(id=>{const el=document.getElementById(id);if(el){el.style.display='none';el.innerHTML='';}});
+  ['xml-cnt-e','xml-cnt-r'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  document.getElementById('btns-proceso').style.display='none';
+  document.getElementById('xml-inp-e').value='';
+  document.getElementById('xml-inp-r').value='';
 }
 
 // ── XML PARSER ────────────────────────────────────────
@@ -637,14 +678,15 @@ function parseXML(text,name){
 
 // ── CALCULAR ──────────────────────────────────────────
 async function procesar(){
-  if(!cliActivo||!mesActivo||!xmlFiles.length){alert('Selecciona cliente, mes y carga XML');return;}
+  if(!cliActivo||!mesActivo){alert('Selecciona cliente y mes');return;}
+  if(!xmlEmitidos.length){alert('Carga al menos los XML emitidos (ingresos)');return;}
   const reg=regActivo||(regs(cliActivo)[0]?.code);if(!reg)return;
   const anio=parseInt(document.getElementById('sel-anio').value);
   const rfc=cliActivo.rfc;
-  const cfdi=xmlFiles.map(f=>parseXML(f.text,f.name)).filter(x=>!x.err);
-  const emit=cfdi.filter(x=>x.rfcE===rfc&&x.tipo==='I');
-  const recib=cfdi.filter(x=>x.rfcR===rfc&&(x.tipo==='I'||x.tipo==='E'));
-  const noms=cfdi.filter(x=>x.rfcR===rfc&&x.esNom);
+  // Parsear emitidos y recibidos por separado — no filtrar por RFC, ya los separó el usuario
+  const emit=xmlEmitidos.map(f=>parseXML(f.text,f.name)).filter(x=>!x.err&&x.tipo==='I');
+  const recib=xmlRecibidos.map(f=>parseXML(f.text,f.name)).filter(x=>!x.err);
+  const noms=recib.filter(x=>x.esNom||x.tipo==='N');
   // ingTotal = todos los ingresos del mes (base ISR RESICO Art.113-E — sin distinción gravado/exento IVA)
   // ingGravIVA = solo los gravados para IVA | ingEx = exentos IVA
   let ingTotal=0,ingGravIVA=0,ingEx=0,ivaTrasI=0,ivaRetI=0,isrRetI=0;
