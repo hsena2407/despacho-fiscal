@@ -58,7 +58,7 @@ window.dbLoad = async () => {
 window.addEventListener('load', () => { window.dbLoad(); });
 </script>
 <style>
-:root{--bg:#0f1117;--surface:#181c27;--surface2:#1e2334;--border:#2a3045;--border2:#3a4460;--accent:#00d4aa;--accent2:#0099ff;--danger:#ff4d6d;--warn:#ffb347;--text:#e8ecf4;--text2:#8892aa;--text3:#556070;--mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;--r:8px;--rl:14px}
+:root{--bg:#f7f8fa;--surface:#ffffff;--surface2:#f0f2f5;--border:#e2e6ee;--border2:#c8d0df;--accent:#0066cc;--accent2:#0099ff;--danger:#d63031;--warn:#e67e22;--text:#1a2035;--text2:#5a6880;--text3:#9aa5b8;--mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;--r:8px;--rl:14px}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh}
 #loading{display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:16px}
@@ -66,18 +66,18 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:1
 @keyframes spin{to{transform:rotate(360deg)}}
 #loading p{font-size:13px;color:var(--text2)}
 #app{display:none;grid-template-columns:255px 1fr;min-height:100vh}
-.sidebar{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column}
+.sidebar{background:#1a2035;border-right:1px solid #0d1526;display:flex;flex-direction:column}
 .main{overflow-y:auto}
-.sb-head{padding:22px 18px 14px;border-bottom:1px solid var(--border)}
-.logo{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px}
-.logo-sub{font-size:11px;color:var(--text2)}
+.sb-head{padding:22px 18px 14px;border-bottom:1px solid #0d1526}
+.logo{font-family:var(--mono);font-size:12px;font-weight:600;color:#60d4ff;letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px}
+.logo-sub{font-size:11px;color:#64748b}
 .nav{flex:1;padding:10px 0}
-.nav-sec{padding:12px 18px 5px;font-size:10px;font-weight:600;letter-spacing:.1em;color:var(--text3);text-transform:uppercase;font-family:var(--mono)}
-.nav-item{display:flex;align-items:center;gap:9px;padding:9px 18px;font-size:13px;color:var(--text2);cursor:pointer;border-left:2px solid transparent;transition:all .15s}
-.nav-item:hover{color:var(--text);background:rgba(255,255,255,.04)}
-.nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(0,212,170,.06)}
+.nav-sec{padding:12px 18px 5px;font-size:10px;font-weight:600;letter-spacing:.1em;color:#4a5568;text-transform:uppercase;font-family:var(--mono)}
+.nav-item{display:flex;align-items:center;gap:9px;padding:9px 18px;font-size:13px;color:#94a3b8;cursor:pointer;border-left:2px solid transparent;transition:all .15s}
+.nav-item:hover{color:#e2e8f0;background:rgba(255,255,255,.06)}
+.nav-item.active{color:#60d4ff;border-left-color:#60d4ff;background:rgba(96,212,255,.08)}
 .nav-item svg{width:15px;height:15px;flex-shrink:0}
-.nb{margin-left:auto;background:var(--accent);color:var(--bg);font-size:10px;font-weight:600;border-radius:10px;padding:1px 6px;font-family:var(--mono)}
+.nb{margin-left:auto;background:#0066cc;color:#fff;font-size:10px;font-weight:600;border-radius:10px;padding:1px 6px;font-family:var(--mono)}
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:var(--surface2);color:var(--text);transition:all .15s;font-family:var(--sans)}
 .btn:hover{background:var(--border)}
 .btn:disabled{opacity:.4;cursor:not-allowed}
@@ -94,7 +94,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:1
 .fg{display:flex;flex-direction:column;gap:5px}
 .fg.full{grid-column:1/-1}
 label{font-size:12px;font-weight:500;color:var(--text2)}
-input,select{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;font-size:13px;color:var(--text);font-family:var(--sans);outline:none;transition:border-color .15s;width:100%}
+input,select{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;font-size:13px;color:var(--text);font-family:var(--sans);outline:none;transition:border-color .15s;width:100%}
 input:focus,select:focus{border-color:var(--accent)}
 select option{background:var(--bg)}
 input[type="file"]{display:none}
@@ -126,7 +126,7 @@ input[type="checkbox"]{width:auto;cursor:pointer}
 .xml-drop p{font-size:12px;color:var(--text2)}
 .xml-chips{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:10px;max-height:160px;overflow-y:auto}
 .chip{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:10px;font-family:var(--mono);color:var(--text2)}
-.chip.i{border-left:3px solid var(--accent)}.chip.e{border-left:3px solid var(--warn)}.chip.err{border-left:3px solid var(--danger);color:var(--danger)}
+.chip.i{border-left:3px solid #0066cc;color:#0066cc}.chip.e{border-left:3px solid var(--warn)}.chip.err{border-left:3px solid var(--danger);color:var(--danger)}
 .xml-counts{display:flex;gap:9px;margin-top:9px;flex-wrap:wrap}
 .xc{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:7px 11px;font-size:11px;min-width:75px}
 .xc span{font-family:var(--mono);font-size:15px;font-weight:600;display:block}
@@ -138,13 +138,13 @@ input[type="checkbox"]{width:auto;cursor:pointer}
 .metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:9px}
 .metric{background:var(--surface2);border-radius:var(--r);padding:11px 13px}
 .metric .val{font-family:var(--mono);font-size:17px;font-weight:600}
-.metric .val.g{color:var(--accent)}.metric .val.r{color:var(--danger)}
+.metric .val.g{color:#0066cc}.metric .val.r{color:var(--danger)}
 .metric .lbl{font-size:11px;color:var(--text2);margin-top:2px}
 .det-table{width:100%;border-collapse:collapse;font-size:11px}
-.det-table th{background:var(--surface2);color:var(--text2);font-weight:500;font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)}
+.det-table th{background:#eef1f6;color:var(--text2);font-weight:500;font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)}
 .det-table td{padding:6px 8px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:top}
 .det-table tr:last-child td{border-bottom:none}
-.det-table tr:hover td{background:rgba(255,255,255,.02)}
+.det-table tr:hover td{background:rgba(0,0,0,.02)}
 .det-table .num{text-align:right;font-family:var(--mono)}
 .calc-table{width:100%;border-collapse:collapse;font-size:13px}
 .calc-table td{padding:7px 11px;border-bottom:1px solid var(--border)}
@@ -170,10 +170,19 @@ input[type="checkbox"]{width:auto;cursor:pointer}
 .hist-row:hover{border-color:var(--border2)}
 .art{font-size:9px;font-family:var(--mono);color:var(--text3);background:var(--surface2);border-radius:3px;padding:1px 4px;margin-left:5px}
 .res-section{margin-bottom:16px}
-.toast{position:fixed;bottom:24px;right:24px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);padding:12px 18px;font-size:13px;color:var(--text);display:none;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.tabs-res{display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--border)}
+.tab-res{padding:9px 20px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;font-family:var(--sans)}
+.tab-res:hover{color:var(--text)}
+.tab-res.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.tab-pane{display:none}.tab-pane.active{display:block}
+.badge-res{display:inline-block;font-size:11px;font-family:var(--mono);font-weight:600;padding:2px 8px;border-radius:12px;margin-left:6px}
+.badge-red{background:rgba(214,48,49,.1);color:var(--danger)}
+.badge-blue{background:rgba(0,102,204,.1);color:var(--accent)}
+.badge-green{background:rgba(0,102,204,.08);color:var(--accent)}
+.toast{position:fixed;bottom:24px;right:24px;background:#fff;border:1px solid var(--border2);border-radius:var(--r);padding:12px 18px;font-size:13px;color:var(--text);display:none;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.15)}
 .toast.ok{border-left:3px solid var(--accent)}.toast.err{border-left:3px solid var(--danger)}
 ::-webkit-scrollbar{width:4px;height:4px}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+::-webkit-scrollbar-thumb{background:#c8d0df;border-radius:3px}
 
 @media print{
 @page{size:Letter;margin:14mm 12mm}
@@ -613,6 +622,8 @@ function parseXML(text,name){
     const em=doc.querySelector('Emisor'),re=doc.querySelector('Receptor');
     const rfcE=em?.getAttribute('Rfc')||'',nomE=em?.getAttribute('Nombre')||'';
     const rfcR=re?.getAttribute('Rfc')||'',nomR=re?.getAttribute('Nombre')||'';
+    const regimenR=re?.getAttribute('RegimenFiscal')||'';
+    const usoCFDI=re?.getAttribute('UsoCFDI')||'';
     const imp=doc.querySelector('Comprobante > Impuestos');
     let ivaTras=0,ivaRet=0,isrRet=0,ivaEx=0;
     if(imp)ivaTras=parseFloat(imp.getAttribute('TotalImpuestosTrasladados')||0);
@@ -620,7 +631,7 @@ function parseXML(text,name){
     doc.querySelectorAll('Traslado').forEach(t=>{if(t.getAttribute('TipoFactor')==='Exento')ivaEx+=parseFloat(t.getAttribute('Base')||0);});
     const conceptos=[...doc.querySelectorAll('Concepto')].map(x=>x.getAttribute('Descripcion')).join(' | ');
     const esNom=!!(doc.querySelector('nomina12\\:Nomina,Nomina')||tipo==='N');
-    return{name,uuid,tipo,fecha,sub,total,rfcE,nomE,rfcR,nomR,ivaTras,ivaRet,isrRet,ivaEx,metodo,conceptos,esNom,err:false};
+    return{name,uuid,tipo,fecha,sub,total,rfcE,nomE,rfcR,nomR,regimenR,usoCFDI,ivaTras,ivaRet,isrRet,ivaEx,metodo,conceptos,esNom,err:false};
   }catch{return{err:true,name};}
 }
 
@@ -644,8 +655,23 @@ async function procesar(){
     ivaTrasI+=x.ivaTras;ivaRetI+=x.ivaRet;isrRetI+=x.isrRet;
   });
   let ingGrav=ingTotal; // alias para compatibilidad con el resto del código
+  // REGLAS DEDUCCIÓN RESICO:
+  // 1. Régimen receptor = 626 (RESICO)
+  // 2. Método PUE  O  tipo P (complemento de pago)
+  // 3. Uso CFDI ≠ S01 (sin efectos fiscales)
+  // Ref: Art.103 LISR, Art.5 LIVA, Art.27-III LISR, RMF
+  function esDeducible(x, regCliente) {
+    if(x.usoCFDI === 'S01') return false;           // sin efectos fiscales
+    if(x.regimenR !== regCliente) return false;     // régimen receptor debe coincidir
+    if(x.tipo === 'P') return true;                 // complemento de pago = pagado
+    if(x.metodo === 'PUE') return true;             // pagado en una exhibición
+    return false;                                   // PPD sin complemento = no pagado
+  }
+  const regClienteCode = reg; // régimen activo del cliente (ej. '626')
+  const gastosDeducibles = recib.filter(x => esDeducible(x, regClienteCode));
+  const gastosNoDed = recib.filter(x => !esDeducible(x, regClienteCode));
   let gastoBase=0,ivaAcred=0;
-  recib.filter(x=>x.tipo==='I').forEach(x=>{gastoBase+=x.sub;ivaAcred+=x.ivaTras;});
+  gastosDeducibles.forEach(x=>{gastoBase+=x.sub;ivaAcred+=x.ivaTras;});
   let r={};
   if(reg==='626'){
     // ISR RESICO: tasa sobre TOTAL de ingresos cobrados sin deducción (Art.113-E LISR)
@@ -659,15 +685,15 @@ async function procesar(){
       ivaP=Math.max(0,ivaTrasI-ivaRetI-ivaPropAcred);
       ivaF=Math.max(0,ivaRetI+ivaPropAcred-ivaTrasI);
     }else{ivaP=Math.max(0,ivaTrasI-ivaRetI-ivaAcred);ivaF=Math.max(0,ivaRetI+ivaAcred-ivaTrasI);}
-    r={reg:'626',rl:'RESICO',ingGrav:ingTotal,ingGravIVA,ingEx,tasa,isrMens,isrRetI,isrCargo,ivaTrasI,ivaRetI,ivaAcred,ivaP,ivaF,ivaPropAcred,gastoBase,emit,recib};
+    r={reg:'626',rl:'RESICO',ingGrav:ingTotal,ingGravIVA,ingEx,tasa,isrMens,isrRetI,isrCargo,ivaTrasI,ivaRetI,ivaAcred,ivaP,ivaF,ivaPropAcred,gastoBase,emit,recib,gastosDeducibles,gastosNoDed};
   }else if(reg==='612'){
     const util=ingGrav-gastoBase,base=Math.max(0,util),isrCalc=isr96(base),isrCargo=Math.max(0,isrCalc-isrRetI);
     const ivaP=Math.max(0,ivaTrasI-ivaRetI-ivaAcred),ivaF=Math.max(0,ivaRetI+ivaAcred-ivaTrasI);
-    r={reg:'612',rl:'Act. Empresarial',ingGrav,ingEx,gastoBase,util,base,isrCalc,isrRetI,isrCargo,ivaTrasI,ivaRetI,ivaAcred,ivaP,ivaF,emit,recib};
+    r={reg:'612',rl:'Act. Empresarial',ingGrav,ingEx,gastoBase,util,base,isrCalc,isrRetI,isrCargo,ivaTrasI,ivaRetI,ivaAcred,ivaP,ivaF,emit,recib,gastosDeducibles,gastosNoDed};
   }else if(reg==='606'){
     const renta=ingGrav,ded=renta*.35,base=Math.max(0,renta-ded),isrCalc=isr96(base),isrCargo=Math.max(0,isrCalc-isrRetI);
     const ivaP=Math.max(0,ivaTrasI-ivaRetI-ivaAcred);
-    r={reg:'606',rl:'Arrendamiento',ingGrav,ded,base,isrCalc,isrRetI,isrCargo,ivaTrasI,ivaRetI,ivaAcred,ivaP,gastoBase,emit,recib};
+    r={reg:'606',rl:'Arrendamiento',ingGrav,ded,base,isrCalc,isrRetI,isrCargo,ivaTrasI,ivaRetI,ivaAcred,ivaP,gastoBase,emit,recib,gastosDeducibles,gastosNoDed};
   }
   if(cliActivo.rSal&&noms.length)r.salInfo={total:noms.reduce((s,x)=>s+x.sub,0),isrRet:noms.reduce((s,x)=>s+x.isrRet,0),n:noms.length};
   r.mes=mesActivo;r.anio=anio;
@@ -684,6 +710,13 @@ async function procesar(){
 }
 
 // ── RENDER RESULTADOS ─────────────────────────────────
+function switchResTab(tab, wrap){
+  wrap.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  wrap.querySelectorAll('.tab-res').forEach(b=>b.classList.remove('active'));
+  const pane = wrap.querySelector('#tab-'+tab);
+  if(pane) pane.classList.add('active');
+  event.currentTarget.classList.add('active');
+}
 function renderRes(r){
   const c=cliActivo,mesL=MF[r.mes-1]+' '+r.anio;
   let h=`<div class="pt-header" style="display:none">
@@ -702,20 +735,58 @@ function renderRes(r){
     <div class="metric"><div class="val">${r.emit.length}</div><div class="lbl">CFDI emitidos</div></div>
     <div class="metric"><div class="val">${r.recib.length}</div><div class="lbl">CFDI recibidos</div></div>
   </div><div class="divider"></div>`;
+  // ── TABS ISR / IVA ──
+  const tabIVA = c.iva !== 'no' ? `<button class="tab-res active" onclick="switchResTab('isr',this.closest('.tabs-wrap'))">ISR <span class="badge-res badge-red">${fmt(r.isrCargo)}</span></button><button class="tab-res" onclick="switchResTab('iva',this.closest('.tabs-wrap'))">IVA <span class="badge-res ${(r.ivaF||0)>0?'badge-green':'badge-red'}">${(r.ivaF||0)>0?'FAV '+fmt(r.ivaF):fmt(r.ivaP)}</span></button>` : `<button class="tab-res active">ISR <span class="badge-res badge-red">${fmt(r.isrCargo)}</span></button>`;
+  h+=`<div class="tabs-wrap"><div class="tabs-res">${tabIVA}</div>`;
+  h+=`<div id="tab-isr" class="tab-pane active">`;
   h+=`<div class="res-section"><div class="sec-title">Cálculo ISR — ${r.rl} <span class="art">${r.reg==='626'?'Art.113-E LISR':r.reg==='612'?'Art.100-106 LISR':'Art.114-116 LISR'}</span></div><table class="calc-table">`;
   if(r.reg==='626'){h+=`<tr><td>Total ingresos cobrados del mes (sin IVA) <span class="art">Art.113-E LISR — incluye gravados y exentos IVA</span></td><td class="pos">${fmt(r.ingGrav)}</td></tr>${r.ingEx>0?`<tr class="sub"><td>De los cuales: gravados IVA 16%</td><td>${fmt(r.ingGravIVA)}</td></tr><tr class="sub"><td>De los cuales: exentos IVA (Art.15 LIVA)</td><td>${fmt(r.ingEx)}</td></tr>`:''}<tr><td>Tasa mensual — tabla Art.113-E LISR</td><td>${pct(r.tasa)}</td></tr><tr><td>ISR mensual (total ingresos × tasa)</td><td>${fmt(r.isrMens)}</td></tr><tr><td class="neg">(−) ISR retenido por PM <span class="art">Art.113-J LISR 1.25%</span></td><td class="neg">−${fmt(r.isrRetI)}</td></tr><tr class="tot"><td>ISR a pagar</td><td>${fmt(r.isrCargo)}</td></tr>`;}
   else if(r.reg==='612'){h+=`<tr><td>Ingresos del mes <span class="art">Art.102 LISR</span></td><td class="pos">${fmt(r.ingGrav)}</td></tr><tr><td class="neg">(−) Deducciones <span class="art">Art.103 LISR</span></td><td class="neg">−${fmt(r.gastoBase)}</td></tr><tr><td>Base gravable <span class="art">Art.106 LISR</span></td><td>${fmt(r.base)}</td></tr><tr><td>ISR tabla <span class="art">Art.96 LISR</span></td><td>${fmt(r.isrCalc)}</td></tr><tr><td class="neg">(−) ISR retenido</td><td class="neg">−${fmt(r.isrRetI)}</td></tr><tr class="tot"><td>ISR a pagar</td><td>${fmt(r.isrCargo)}</td></tr>`;}
   else{h+=`<tr><td>Renta cobrada <span class="art">Art.114 LISR</span></td><td class="pos">${fmt(r.ingGrav)}</td></tr><tr><td class="neg">(−) Deducción ciega 35% <span class="art">Art.115 párr.2</span></td><td class="neg">−${fmt(r.ded)}</td></tr><tr><td>Base gravable <span class="art">Art.116 LISR</span></td><td>${fmt(r.base)}</td></tr><tr><td>ISR tabla Art.96 (Art.116)</td><td>${fmt(r.isrCalc)}</td></tr><tr><td class="neg">(−) ISR retenido PM <span class="art">Art.116 párr.4 — 10%</span></td><td class="neg">−${fmt(r.isrRetI)}</td></tr><tr class="tot"><td>ISR a pagar</td><td>${fmt(r.isrCargo)}</td></tr>`;}
   h+=`</table></div>`;
+  h+=`</div>`; // close tab-isr
+  if(c.iva!=='no'){
+  h+=`<div id="tab-iva" class="tab-pane">`;
   if(c.iva!=='no'){
     h+=`<div class="res-section"><div class="sec-title">Cálculo IVA <span class="art">Art.1o., 5o. LIVA</span></div><table class="calc-table"><tr><td>IVA trasladado 16% <span class="art">Art.1o. LIVA</span></td><td class="pos">${fmt(r.ivaTrasI)}</td></tr><tr><td class="neg">(−) IVA retenido PM <span class="art">Art.1o-A LIVA</span></td><td class="neg">−${fmt(r.ivaRetI)}</td></tr>`;
     if(c.iva==='mixto'){const tot=(r.ingGravIVA||r.ingGrav)+r.ingEx,prop=tot>0?(r.ingGravIVA||r.ingGrav)/tot:0;h+=`<tr class="sub"><td>Base IVA gravada</td><td>${fmt(r.ingGravIVA||r.ingGrav)}</td></tr><tr class="sub"><td>Proporción gravado/total <span class="art">Art.5-V-c LIVA</span></td><td>${pct(prop)}</td></tr><tr><td class="neg">(−) IVA acreditable proporcional</td><td class="neg">−${fmt(r.ivaPropAcred)}</td></tr>`;}
     else h+=`<tr><td class="neg">(−) IVA acreditable gastos <span class="art">Art.5o. LIVA</span></td><td class="neg">−${fmt(r.ivaAcred)}</td></tr>`;
     h+=`<tr class="tot"><td>${(r.ivaF||0)>0?'Saldo a favor':'IVA a pagar'}</td><td class="${(r.ivaF||0)>0?'pos':'neg'}">${fmt((r.ivaF||0)>0?r.ivaF:r.ivaP)}</td></tr></table></div>`;
-  }else{h+=`<div class="alert a-ok">✓ Sin IVA — Art. 15 Fracc. XIV LIVA: servicios médicos exentos.</div>`;}
+  h+=`</div>`; // close tab-iva
+  }}}else{h+=`<div class="alert a-ok">✓ Sin IVA — Art. 15 Fracc. XIV LIVA: servicios médicos exentos.</div>`;}
+  h+=`</div>`; // close tabs-wrap
   if(r.salInfo){h+=`<div class="res-section"><div class="sec-title">Sueldos y Salarios <span class="art">Art.94-96 LISR</span></div><div class="alert a-info">ℹ ISR retenido por el patrón (Art.96). Régimen independiente del RESICO.</div><table class="calc-table"><tr><td>CFDI nómina recibidos</td><td>${r.salInfo.n}</td></tr><tr><td>Total percepciones</td><td class="pos">${fmt(r.salInfo.total)}</td></tr><tr class="tot"><td>ISR retenido por patrón</td><td>${fmt(r.salInfo.isrRet)}</td></tr></table></div>`;}
   if(r.emit.length){h+=`<div class="res-section"><div class="sec-title">CFDI emitidos — ingresos (${r.emit.length})</div><table class="det-table"><thead><tr><th>Fecha</th><th>RFC receptor</th><th>Concepto</th><th class="num">Subtotal</th><th class="num">IVA</th><th class="num">IVA ret</th><th class="num">ISR ret</th></tr></thead><tbody>${r.emit.map(x=>`<tr><td style="white-space:nowrap">${x.fecha.substring(0,10)}</td><td><div style="font-family:var(--mono);font-size:10px">${x.rfcR}</div><div style="font-size:11px;color:var(--text2)">${x.nomR.substring(0,28)}</div></td><td style="font-size:10px;color:var(--text2)">${x.conceptos.substring(0,45)}…</td><td class="num">${fmt(x.sub)}</td><td class="num">${fmt(x.ivaTras)}</td><td class="num">${x.ivaRet>0?fmt(x.ivaRet):'—'}</td><td class="num">${x.isrRet>0?fmt(x.isrRet):'—'}</td></tr>`).join('')}</tbody><tfoot><tr style="font-weight:600;background:var(--surface2)"><td colspan="3" style="font-family:var(--mono);font-size:10px;padding:6px 8px">TOTALES</td><td class="num">${fmt(r.emit.reduce((s,x)=>s+x.sub,0))}</td><td class="num">${fmt(r.emit.reduce((s,x)=>s+x.ivaTras,0))}</td><td class="num">${fmt(r.emit.reduce((s,x)=>s+x.ivaRet,0))}</td><td class="num">${fmt(r.emit.reduce((s,x)=>s+x.isrRet,0))}</td></tr></tfoot></table></div>`;}
-  if(r.recib.length){h+=`<div class="res-section"><div class="sec-title">CFDI recibidos — gastos (${r.recib.length})</div><table class="det-table"><thead><tr><th>Fecha</th><th>RFC emisor</th><th>Concepto</th><th class="num">Subtotal</th><th class="num">IVA</th></tr></thead><tbody>${r.recib.map(x=>`<tr><td style="white-space:nowrap">${x.fecha.substring(0,10)}</td><td><div style="font-family:var(--mono);font-size:10px">${x.rfcE}</div><div style="font-size:11px;color:var(--text2)">${x.nomE.substring(0,28)}</div></td><td style="font-size:10px;color:var(--text2)">${x.conceptos.substring(0,45)}…</td><td class="num">${fmt(x.sub)}</td><td class="num">${fmt(x.ivaTras)}</td></tr>`).join('')}</tbody><tfoot><tr style="font-weight:600;background:var(--surface2)"><td colspan="3" style="font-family:var(--mono);font-size:10px;padding:6px 8px">TOTALES</td><td class="num">${fmt(r.recib.reduce((s,x)=>s+x.sub,0))}</td><td class="num">${fmt(r.recib.reduce((s,x)=>s+x.ivaTras,0))}</td></tr></tfoot></table></div>`;}
+  if(r.recib.length){
+  const gd=r.gastosDeducibles||r.recib;
+  const gnd=r.gastosNoDed||[];
+  h+=`<div class="res-section"><div class="sec-title">CFDI recibidos — gastos (${r.recib.length} total · ${gd.length} deducibles)</div>
+  <table class="det-table"><thead><tr><th>Fecha</th><th>RFC emisor</th><th>Concepto</th><th>Reg.R</th><th>Met</th><th>Estado</th><th class="num">Subtotal</th><th class="num">IVA</th></tr></thead><tbody>
+  ${r.recib.map(x=>{
+    const ded=(r.gastosDeducibles||[]).includes(x);
+    const razones=[];
+    if(x.usoCFDI==='S01') razones.push('S01');
+    else if(x.tipo==='P') razones.push('Pago ✓');
+    else if(x.metodo==='PUE'&&x.regimenR===(regActivo||'626')) razones.push('PUE ✓');
+    else if(x.metodo==='PPD') razones.push('PPD s/pago');
+    else if(x.regimenR!==(regActivo||'626')) razones.push('Reg≠626');
+    return `<tr style="${ded?'':'opacity:.5'}">
+      <td style="white-space:nowrap;font-size:10px">${x.fecha.substring(0,10)}</td>
+      <td><div style="font-family:var(--mono);font-size:10px">${x.rfcE}</div><div style="font-size:10px;color:var(--text2)">${x.nomE.substring(0,25)}</div></td>
+      <td style="font-size:10px;color:var(--text2)">${x.conceptos.substring(0,40)}…</td>
+      <td style="font-family:var(--mono);font-size:10px">${x.regimenR||'—'}</td>
+      <td style="font-family:var(--mono);font-size:10px">${x.metodo||x.tipo}</td>
+      <td style="font-size:10px;color:${ded?'var(--accent)':'var(--danger)'}">${razones.join(', ')}</td>
+      <td class="num" style="color:${ded?'inherit':'var(--danger)'}">${fmt(x.sub)}</td>
+      <td class="num" style="color:${ded?'inherit':'var(--danger)'}">${fmt(x.ivaTras)}</td>
+    </tr>`;
+  }).join('')}
+  </tbody>
+  <tfoot>
+    <tr style="font-weight:600;background:var(--surface2)"><td colspan="6" style="font-family:var(--mono);font-size:10px;padding:6px 8px">DEDUCIBLES (${gd.length})</td><td class="num">${fmt(gd.reduce((s,x)=>s+x.sub,0))}</td><td class="num">${fmt(gd.reduce((s,x)=>s+x.ivaTras,0))}</td></tr>
+    ${gnd.length?`<tr style="opacity:.6"><td colspan="6" style="font-family:var(--mono);font-size:10px;padding:6px 8px">NO DEDUCIBLES (${gnd.length})</td><td class="num">${fmt(gnd.reduce((s,x)=>s+x.sub,0))}</td><td class="num">${fmt(gnd.reduce((s,x)=>s+x.ivaTras,0))}</td></tr>`:''}
+  </tfoot></table></div>`;
+}
   h+=`<div class="pt-footer" style="display:none">FiscoDesk MX | Elaborado: ${new Date().toLocaleDateString('es-MX')} | LISR 2026 · LIVA 2026 · RMF 2026 (DOF 28-12-2025)</div>`;
   h+=`<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:16px"><button class="btn btn-primary" onclick="genExcel()">⬇ Descargar Excel</button><button class="btn" onclick="window.print()">🖨 Imprimir / PDF</button><button class="btn" onclick="procesar()">↺ Recalcular</button></div>`;
   document.getElementById('resultados').style.display='block';
@@ -735,7 +806,11 @@ function genExcel(){
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(isrR),'ISR');
   if(c.iva!=='no'){const ivaR=[[c.nombre],['IVA '+mesL],[],['Concepto','Importe'],['IVA trasladado 16%',r.ivaTrasI],['(−) IVA retenido',-(r.ivaRetI||0)]];if(c.iva==='mixto'){const p=r.ingGrav/(r.ingGrav+r.ingEx);ivaR.push(['Proporción Art.5-V-c',p],['(−) IVA acreditable proporcional',-(r.ivaPropAcred||0)]);}else ivaR.push(['(−) IVA acreditable',-(r.ivaAcred||0)]);ivaR.push([(r.ivaF||0)>0?'SALDO A FAVOR':'IVA A PAGAR',(r.ivaF||0)>0?r.ivaF:(r.ivaP||0)]);XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ivaR),'IVA');}
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['UUID','Fecha','RFC Receptor','Nombre','Concepto','Subtotal','IVA','IVA ret','ISR ret','Total'],...r.emit.map(x=>[x.uuid,x.fecha,x.rfcR,x.nomR,x.conceptos,x.sub,x.ivaTras,x.ivaRet,x.isrRet,x.total])]),'CFDI Ingresos');
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['UUID','Fecha','RFC Emisor','Nombre','Concepto','Subtotal','IVA','Total'],...r.recib.map(x=>[x.uuid,x.fecha,x.rfcE,x.nomE,x.conceptos,x.sub,x.ivaTras,x.total])]),'CFDI Gastos');
+  const gDed=r.gastosDeducibles||r.recib;
+  const gNoDed=r.gastosNoDed||[];
+  const hdG=['UUID','Fecha','RFC Emisor','Nombre','Concepto','Reg.Receptor','Método','Uso','Subtotal','IVA','Total','Deducible'];
+  const rwG=[...gDed.map(x=>[x.uuid,x.fecha,x.rfcE,x.nomE,x.conceptos,x.regimenR,x.metodo,x.usoCFDI,x.sub,x.ivaTras,x.total,'SÍ']),...gNoDed.map(x=>[x.uuid,x.fecha,x.rfcE,x.nomE,x.conceptos,x.regimenR,x.metodo,x.usoCFDI,x.sub,x.ivaTras,x.total,'NO'])];
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([hdG,...rwG]),'CFDI Gastos');
   XLSX.writeFile(wb,`PT_${c.rfc}_${r.rl.replace(/\s/g,'_')}_${mesL}_${r.anio}.xlsx`);
 }
 
