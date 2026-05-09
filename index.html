@@ -634,18 +634,32 @@ async function procesar(){
   const emit=cfdi.filter(x=>x.rfcE===rfc&&x.tipo==='I');
   const recib=cfdi.filter(x=>x.rfcR===rfc&&(x.tipo==='I'||x.tipo==='E'));
   const noms=cfdi.filter(x=>x.rfcR===rfc&&x.esNom);
-  let ingGrav=0,ingEx=0,ivaTrasI=0,ivaRetI=0,isrRetI=0;
-  emit.forEach(x=>{ingGrav+=x.sub-x.ivaEx;ingEx+=x.ivaEx;ivaTrasI+=x.ivaTras;ivaRetI+=x.ivaRet;isrRetI+=x.isrRet;});
+  // ingTotal = todos los ingresos del mes (base ISR RESICO Art.113-E — sin distinción gravado/exento IVA)
+  // ingGravIVA = solo los gravados para IVA | ingEx = exentos IVA
+  let ingTotal=0,ingGravIVA=0,ingEx=0,ivaTrasI=0,ivaRetI=0,isrRetI=0;
+  emit.forEach(x=>{
+    ingTotal+=x.sub;           // base ISR RESICO: TODOS los ingresos Art.113-E
+    ingGravIVA+=x.sub-x.ivaEx; // base IVA: solo gravados
+    ingEx+=x.ivaEx;
+    ivaTrasI+=x.ivaTras;ivaRetI+=x.ivaRet;isrRetI+=x.isrRet;
+  });
+  let ingGrav=ingTotal; // alias para compatibilidad con el resto del código
   let gastoBase=0,ivaAcred=0;
   recib.filter(x=>x.tipo==='I').forEach(x=>{gastoBase+=x.sub;ivaAcred+=x.ivaTras;});
   let r={};
   if(reg==='626'){
-    const tasa=resicoT(ingGrav),isrMens=ingGrav*tasa,isrCargo=Math.max(0,isrMens-isrRetI);
+    // ISR RESICO: tasa sobre TOTAL de ingresos cobrados sin deducción (Art.113-E LISR)
+    const tasa=resicoT(ingTotal),isrMens=ingTotal*tasa,isrCargo=Math.max(0,isrMens-isrRetI);
     let ivaP=0,ivaF=0,ivaPropAcred=0;
     if(cliActivo.iva==='no'){ivaP=0;}
-    else if(cliActivo.iva==='mixto'){const tot=ingGrav+ingEx,prop=tot>0?ingGrav/tot:0;ivaPropAcred=ivaAcred*prop;ivaP=Math.max(0,ivaTrasI-ivaRetI-ivaPropAcred);ivaF=Math.max(0,ivaRetI+ivaPropAcred-ivaTrasI);}
-    else{ivaP=Math.max(0,ivaTrasI-ivaRetI-ivaAcred);ivaF=Math.max(0,ivaRetI+ivaAcred-ivaTrasI);}
-    r={reg:'626',rl:'RESICO',ingGrav,ingEx,tasa,isrMens,isrRetI,isrCargo,ivaTrasI,ivaRetI,ivaAcred,ivaP,ivaF,ivaPropAcred,gastoBase,emit,recib};
+    else if(cliActivo.iva==='mixto'){
+      // IVA mixto: proporción sobre ingresos gravados IVA vs total (Art.5-V-c LIVA)
+      const tot=ingGravIVA+ingEx,prop=tot>0?ingGravIVA/tot:0;
+      ivaPropAcred=ivaAcred*prop;
+      ivaP=Math.max(0,ivaTrasI-ivaRetI-ivaPropAcred);
+      ivaF=Math.max(0,ivaRetI+ivaPropAcred-ivaTrasI);
+    }else{ivaP=Math.max(0,ivaTrasI-ivaRetI-ivaAcred);ivaF=Math.max(0,ivaRetI+ivaAcred-ivaTrasI);}
+    r={reg:'626',rl:'RESICO',ingGrav:ingTotal,ingGravIVA,ingEx,tasa,isrMens,isrRetI,isrCargo,ivaTrasI,ivaRetI,ivaAcred,ivaP,ivaF,ivaPropAcred,gastoBase,emit,recib};
   }else if(reg==='612'){
     const util=ingGrav-gastoBase,base=Math.max(0,util),isrCalc=isr96(base),isrCargo=Math.max(0,isrCalc-isrRetI);
     const ivaP=Math.max(0,ivaTrasI-ivaRetI-ivaAcred),ivaF=Math.max(0,ivaRetI+ivaAcred-ivaTrasI);
@@ -689,13 +703,13 @@ function renderRes(r){
     <div class="metric"><div class="val">${r.recib.length}</div><div class="lbl">CFDI recibidos</div></div>
   </div><div class="divider"></div>`;
   h+=`<div class="res-section"><div class="sec-title">Cálculo ISR — ${r.rl} <span class="art">${r.reg==='626'?'Art.113-E LISR':r.reg==='612'?'Art.100-106 LISR':'Art.114-116 LISR'}</span></div><table class="calc-table">`;
-  if(r.reg==='626'){h+=`<tr><td>Ingresos cobrados del mes (sin IVA) <span class="art">Art.113-E LISR</span></td><td class="pos">${fmt(r.ingGrav)}</td></tr>${r.ingEx>0?`<tr class="sub"><td>Del cual: ingreso exento</td><td>${fmt(r.ingEx)}</td></tr>`:''}<tr><td>Tasa mensual — tabla Art.113-E LISR</td><td>${pct(r.tasa)}</td></tr><tr><td>ISR mensual (ingresos × tasa)</td><td>${fmt(r.isrMens)}</td></tr><tr><td class="neg">(−) ISR retenido por PM <span class="art">Art.113-J LISR 1.25%</span></td><td class="neg">−${fmt(r.isrRetI)}</td></tr><tr class="tot"><td>ISR a pagar</td><td>${fmt(r.isrCargo)}</td></tr>`;}
+  if(r.reg==='626'){h+=`<tr><td>Total ingresos cobrados del mes (sin IVA) <span class="art">Art.113-E LISR — incluye gravados y exentos IVA</span></td><td class="pos">${fmt(r.ingGrav)}</td></tr>${r.ingEx>0?`<tr class="sub"><td>De los cuales: gravados IVA 16%</td><td>${fmt(r.ingGravIVA)}</td></tr><tr class="sub"><td>De los cuales: exentos IVA (Art.15 LIVA)</td><td>${fmt(r.ingEx)}</td></tr>`:''}<tr><td>Tasa mensual — tabla Art.113-E LISR</td><td>${pct(r.tasa)}</td></tr><tr><td>ISR mensual (total ingresos × tasa)</td><td>${fmt(r.isrMens)}</td></tr><tr><td class="neg">(−) ISR retenido por PM <span class="art">Art.113-J LISR 1.25%</span></td><td class="neg">−${fmt(r.isrRetI)}</td></tr><tr class="tot"><td>ISR a pagar</td><td>${fmt(r.isrCargo)}</td></tr>`;}
   else if(r.reg==='612'){h+=`<tr><td>Ingresos del mes <span class="art">Art.102 LISR</span></td><td class="pos">${fmt(r.ingGrav)}</td></tr><tr><td class="neg">(−) Deducciones <span class="art">Art.103 LISR</span></td><td class="neg">−${fmt(r.gastoBase)}</td></tr><tr><td>Base gravable <span class="art">Art.106 LISR</span></td><td>${fmt(r.base)}</td></tr><tr><td>ISR tabla <span class="art">Art.96 LISR</span></td><td>${fmt(r.isrCalc)}</td></tr><tr><td class="neg">(−) ISR retenido</td><td class="neg">−${fmt(r.isrRetI)}</td></tr><tr class="tot"><td>ISR a pagar</td><td>${fmt(r.isrCargo)}</td></tr>`;}
   else{h+=`<tr><td>Renta cobrada <span class="art">Art.114 LISR</span></td><td class="pos">${fmt(r.ingGrav)}</td></tr><tr><td class="neg">(−) Deducción ciega 35% <span class="art">Art.115 párr.2</span></td><td class="neg">−${fmt(r.ded)}</td></tr><tr><td>Base gravable <span class="art">Art.116 LISR</span></td><td>${fmt(r.base)}</td></tr><tr><td>ISR tabla Art.96 (Art.116)</td><td>${fmt(r.isrCalc)}</td></tr><tr><td class="neg">(−) ISR retenido PM <span class="art">Art.116 párr.4 — 10%</span></td><td class="neg">−${fmt(r.isrRetI)}</td></tr><tr class="tot"><td>ISR a pagar</td><td>${fmt(r.isrCargo)}</td></tr>`;}
   h+=`</table></div>`;
   if(c.iva!=='no'){
     h+=`<div class="res-section"><div class="sec-title">Cálculo IVA <span class="art">Art.1o., 5o. LIVA</span></div><table class="calc-table"><tr><td>IVA trasladado 16% <span class="art">Art.1o. LIVA</span></td><td class="pos">${fmt(r.ivaTrasI)}</td></tr><tr><td class="neg">(−) IVA retenido PM <span class="art">Art.1o-A LIVA</span></td><td class="neg">−${fmt(r.ivaRetI)}</td></tr>`;
-    if(c.iva==='mixto'){const tot=r.ingGrav+r.ingEx,prop=tot>0?r.ingGrav/tot:0;h+=`<tr class="sub"><td>Proporción gravado/total <span class="art">Art.5-V-c LIVA</span></td><td>${pct(prop)}</td></tr><tr><td class="neg">(−) IVA acreditable proporcional</td><td class="neg">−${fmt(r.ivaPropAcred)}</td></tr>`;}
+    if(c.iva==='mixto'){const tot=(r.ingGravIVA||r.ingGrav)+r.ingEx,prop=tot>0?(r.ingGravIVA||r.ingGrav)/tot:0;h+=`<tr class="sub"><td>Base IVA gravada</td><td>${fmt(r.ingGravIVA||r.ingGrav)}</td></tr><tr class="sub"><td>Proporción gravado/total <span class="art">Art.5-V-c LIVA</span></td><td>${pct(prop)}</td></tr><tr><td class="neg">(−) IVA acreditable proporcional</td><td class="neg">−${fmt(r.ivaPropAcred)}</td></tr>`;}
     else h+=`<tr><td class="neg">(−) IVA acreditable gastos <span class="art">Art.5o. LIVA</span></td><td class="neg">−${fmt(r.ivaAcred)}</td></tr>`;
     h+=`<tr class="tot"><td>${(r.ivaF||0)>0?'Saldo a favor':'IVA a pagar'}</td><td class="${(r.ivaF||0)>0?'pos':'neg'}">${fmt((r.ivaF||0)>0?r.ivaF:r.ivaP)}</td></tr></table></div>`;
   }else{h+=`<div class="alert a-ok">✓ Sin IVA — Art. 15 Fracc. XIV LIVA: servicios médicos exentos.</div>`;}
