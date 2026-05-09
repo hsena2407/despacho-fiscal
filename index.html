@@ -746,14 +746,15 @@ function renderRes(r){
   h+=`</table></div>`;
   h+=`</div>`; // close tab-isr
   if(c.iva!=='no'){
-  h+=`<div id="tab-iva" class="tab-pane">`;
-  if(c.iva!=='no'){
+    h+=`<div id="tab-iva" class="tab-pane">`;
     h+=`<div class="res-section"><div class="sec-title">Cálculo IVA <span class="art">Art.1o., 5o. LIVA</span></div><table class="calc-table"><tr><td>IVA trasladado 16% <span class="art">Art.1o. LIVA</span></td><td class="pos">${fmt(r.ivaTrasI)}</td></tr><tr><td class="neg">(−) IVA retenido PM <span class="art">Art.1o-A LIVA</span></td><td class="neg">−${fmt(r.ivaRetI)}</td></tr>`;
     if(c.iva==='mixto'){const tot=(r.ingGravIVA||r.ingGrav)+r.ingEx,prop=tot>0?(r.ingGravIVA||r.ingGrav)/tot:0;h+=`<tr class="sub"><td>Base IVA gravada</td><td>${fmt(r.ingGravIVA||r.ingGrav)}</td></tr><tr class="sub"><td>Proporción gravado/total <span class="art">Art.5-V-c LIVA</span></td><td>${pct(prop)}</td></tr><tr><td class="neg">(−) IVA acreditable proporcional</td><td class="neg">−${fmt(r.ivaPropAcred)}</td></tr>`;}
     else h+=`<tr><td class="neg">(−) IVA acreditable gastos <span class="art">Art.5o. LIVA</span></td><td class="neg">−${fmt(r.ivaAcred)}</td></tr>`;
     h+=`<tr class="tot"><td>${(r.ivaF||0)>0?'Saldo a favor':'IVA a pagar'}</td><td class="${(r.ivaF||0)>0?'pos':'neg'}">${fmt((r.ivaF||0)>0?r.ivaF:r.ivaP)}</td></tr></table></div>`;
-  h+=`</div>`; // close tab-iva
-  }}}else{h+=`<div class="alert a-ok">✓ Sin IVA — Art. 15 Fracc. XIV LIVA: servicios médicos exentos.</div>`;}
+    h+=`</div>`; // close tab-iva
+  }else{
+    h+=`<div class="alert a-ok">✓ Sin IVA — Art. 15 Fracc. XIV LIVA: servicios médicos exentos.</div>`;
+  }
   h+=`</div>`; // close tabs-wrap
   if(r.salInfo){h+=`<div class="res-section"><div class="sec-title">Sueldos y Salarios <span class="art">Art.94-96 LISR</span></div><div class="alert a-info">ℹ ISR retenido por el patrón (Art.96). Régimen independiente del RESICO.</div><table class="calc-table"><tr><td>CFDI nómina recibidos</td><td>${r.salInfo.n}</td></tr><tr><td>Total percepciones</td><td class="pos">${fmt(r.salInfo.total)}</td></tr><tr class="tot"><td>ISR retenido por patrón</td><td>${fmt(r.salInfo.isrRet)}</td></tr></table></div>`;}
   if(r.emit.length){h+=`<div class="res-section"><div class="sec-title">CFDI emitidos — ingresos (${r.emit.length})</div><table class="det-table"><thead><tr><th>Fecha</th><th>RFC receptor</th><th>Concepto</th><th class="num">Subtotal</th><th class="num">IVA</th><th class="num">IVA ret</th><th class="num">ISR ret</th></tr></thead><tbody>${r.emit.map(x=>`<tr><td style="white-space:nowrap">${x.fecha.substring(0,10)}</td><td><div style="font-family:var(--mono);font-size:10px">${x.rfcR}</div><div style="font-size:11px;color:var(--text2)">${x.nomR.substring(0,28)}</div></td><td style="font-size:10px;color:var(--text2)">${x.conceptos.substring(0,45)}…</td><td class="num">${fmt(x.sub)}</td><td class="num">${fmt(x.ivaTras)}</td><td class="num">${x.ivaRet>0?fmt(x.ivaRet):'—'}</td><td class="num">${x.isrRet>0?fmt(x.isrRet):'—'}</td></tr>`).join('')}</tbody><tfoot><tr style="font-weight:600;background:var(--surface2)"><td colspan="3" style="font-family:var(--mono);font-size:10px;padding:6px 8px">TOTALES</td><td class="num">${fmt(r.emit.reduce((s,x)=>s+x.sub,0))}</td><td class="num">${fmt(r.emit.reduce((s,x)=>s+x.ivaTras,0))}</td><td class="num">${fmt(r.emit.reduce((s,x)=>s+x.ivaRet,0))}</td><td class="num">${fmt(r.emit.reduce((s,x)=>s+x.isrRet,0))}</td></tr></tfoot></table></div>`;}
