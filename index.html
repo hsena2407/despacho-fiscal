@@ -40,6 +40,29 @@ window.dbSaveHist = async (h) => {
   const id = `${h.rfc}_${h.anio}_${h.mes}_${h.rc}`;
   await setDoc(doc(db, "historial", id), h);
 };
+// Guardar XMLs en Firebase (texto comprimido en base64)
+window.dbSaveXMLs = async (rfc, mes, anio, tipo, xmlsArr) => {
+  const id = `${rfc}_${anio}_${mes}_${tipo}`;
+  // Store filenames and content
+  const data = { rfc, mes, anio, tipo, archivos: xmlsArr.map(x=>({name:x.name, text:x.text})), fecha: new Date().toISOString() };
+  await setDoc(doc(db, "xmls", id), data);
+};
+window.dbLoadXMLs = async (rfc, mes, anio, tipo) => {
+  const id = `${rfc}_${anio}_${mes}_${tipo}`;
+  try {
+    const snap = await getDocs(query(collection(db, "xmls")));
+    let found = null;
+    snap.forEach(d => { if(d.id === id) found = d.data(); });
+    return found;
+  } catch(e) { return null; }
+};
+window.dbGetXML = async (id) => {
+  try {
+    const { getDoc } = await import("https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js");
+    const snap = await getDoc(doc(db, "xmls", id));
+    return snap.exists() ? snap.data() : null;
+  } catch(e) { return null; }
+};
 window.dbLoad = async () => {
   const [cSnap, hSnap] = await Promise.all([
     getDocs(collection(db, "clientes")),
@@ -320,6 +343,9 @@ body{background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt}
           <div id="xml-chips-r" class="xml-chips" style="display:none;margin-top:8px"></div>
           <div id="xml-cnt-r" style="display:none;margin-top:6px;font-size:12px;font-family:var(--mono);color:var(--warn)"></div>
         </div>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:8px">
+        <button class="btn btn-sm" onclick="cargarXMLsGuardados()" style="font-size:11px">☁ Cargar XML guardados</button>
       </div>
       <div id="btns-proceso" style="display:none;gap:9px;margin-top:12px">
         <button class="btn btn-primary" onclick="procesar()">▶ Calcular impuestos</button>
@@ -615,11 +641,58 @@ function handleXMLRecib(e){loadXMLRecib([...e.target.files]);}
 
 function loadXMLEmit(files){
   let p=files.length;if(!p)return;
-  files.forEach(f=>{const r=new FileReader();r.onload=e=>{xmlEmitidos.push({name:f.name,text:e.target.result});if(--p===0)renderXMLChips('e');};r.readAsText(f,'UTF-8');});
+  files.forEach(f=>{
+    // Check for duplicates by filename
+    if(xmlEmitidos.find(x=>x.name===f.name)){
+      toast('⚠ '+f.name.substring(0,30)+' ya está cargado','err');
+      if(--p===0)renderXMLChips('e');
+      return;
+    }
+    const r=new FileReader();
+    r.onload=e=>{xmlEmitidos.push({name:f.name,text:e.target.result});if(--p===0){renderXMLChips('e');autoSaveXMLs('e');}};
+    r.readAsText(f,'UTF-8');
+  });
 }
 function loadXMLRecib(files){
   let p=files.length;if(!p)return;
-  files.forEach(f=>{const r=new FileReader();r.onload=e=>{xmlRecibidos.push({name:f.name,text:e.target.result});if(--p===0)renderXMLChips('r');};r.readAsText(f,'UTF-8');});
+  files.forEach(f=>{
+    if(xmlRecibidos.find(x=>x.name===f.name)){
+      toast('⚠ '+f.name.substring(0,30)+' ya está cargado','err');
+      if(--p===0)renderXMLChips('r');
+      return;
+    }
+    const r=new FileReader();
+    r.onload=e=>{xmlRecibidos.push({name:f.name,text:e.target.result});if(--p===0){renderXMLChips('r');autoSaveXMLs('r');}};
+    r.readAsText(f,'UTF-8');
+  });
+}
+async function autoSaveXMLs(tipo){
+  if(!cliActivo||!mesActivo)return;
+  const arr=tipo==='e'?xmlEmitidos:xmlRecibidos;
+  if(!arr.length)return;
+  try{
+    await window.dbSaveXMLs(cliActivo.rfc,mesActivo,parseInt(document.getElementById('sel-anio').value),tipo,arr);
+    toast('☁ XML '+tipo.toUpperCase()+' guardados en la nube');
+  }catch(e){console.warn('No se pudieron guardar XML:',e);}
+}
+async function cargarXMLsGuardados(){
+  if(!cliActivo||!mesActivo)return;
+  const anio=parseInt(document.getElementById('sel-anio').value);
+  const rfc=cliActivo.rfc;
+  let cargados=0;
+  for(const tipo of['e','r']){
+    const id=`${rfc}_${anio}_${mesActivo}_${tipo}`;
+    try{
+      const data=await window.dbGetXML(id);
+      if(data&&data.archivos&&data.archivos.length){
+        if(tipo==='e'){xmlEmitidos=data.archivos;renderXMLChips('e');}
+        else{xmlRecibidos=data.archivos;renderXMLChips('r');}
+        cargados+=data.archivos.length;
+      }
+    }catch(e){}
+  }
+  if(cargados>0){toast('☁ '+cargados+' XML cargados desde la nube');}
+  else{toast('Sin XML guardados para este mes','err');}
 }
 
 function renderXMLChips(tipo){
@@ -672,7 +745,21 @@ function parseXML(text,name){
     doc.querySelectorAll('Traslado').forEach(t=>{if(t.getAttribute('TipoFactor')==='Exento')ivaEx+=parseFloat(t.getAttribute('Base')||0);});
     const conceptos=[...doc.querySelectorAll('Concepto')].map(x=>x.getAttribute('Descripcion')).join(' | ');
     const esNom=!!(doc.querySelector('nomina12\\:Nomina,Nomina')||tipo==='N');
-    return{name,uuid,tipo,fecha,sub,total,rfcE,nomE,rfcR,nomR,regimenR,usoCFDI,ivaTras,ivaRet,isrRet,ivaEx,metodo,conceptos,esNom,err:false};
+    // Forma de pago del CFDI (para gastos PUE)
+    const forma=c.getAttribute('FormaPago')||'';
+    // Para complementos de pago: leer FormaDePagoP e ImporteP del IVA
+    let formaPagoP='', ivaImporteP=0, fechaPagoP='';
+    if(tipo==='P'){
+      const pagoEl=doc.querySelector('Pago');
+      if(pagoEl){
+        formaPagoP=pagoEl.getAttribute('FormaDePagoP')||'';
+        fechaPagoP=pagoEl.getAttribute('FechaPago')||'';
+      }
+      doc.querySelectorAll('TrasladoP').forEach(t=>{
+        if(t.getAttribute('ImpuestoP')==='002') ivaImporteP+=parseFloat(t.getAttribute('ImporteP')||0);
+      });
+    }
+    return{name,uuid,tipo,fecha,sub,total,rfcE,nomE,rfcR,nomR,regimenR,usoCFDI,ivaTras,ivaRet,isrRet,ivaEx,metodo,forma,formaPagoP,ivaImporteP,fechaPagoP,conceptos,esNom,err:false};
   }catch{return{err:true,name};}
 }
 
@@ -697,23 +784,49 @@ async function procesar(){
     ivaTrasI+=x.ivaTras;ivaRetI+=x.ivaRet;isrRetI+=x.isrRet;
   });
   let ingGrav=ingTotal; // alias para compatibilidad con el resto del código
-  // REGLAS DEDUCCIÓN RESICO:
-  // 1. Régimen receptor = 626 (RESICO)
-  // 2. Método PUE  O  tipo P (complemento de pago)
-  // 3. Uso CFDI ≠ S01 (sin efectos fiscales)
-  // Ref: Art.103 LISR, Art.5 LIVA, Art.27-III LISR, RMF
+  // REGLAS DEDUCCIÓN RESICO — según lógica del SAT (declaración precargada):
+  // 1. Régimen receptor = régimen del cliente (ej. 626)
+  // 2. Uso CFDI ≠ S01 (sin efectos fiscales)
+  // 3. Para CFDI tipo I (gasto): método PUE + forma de pago BANCARIZADA
+  //    Bancarizadas: 02=Cheque, 03=Transferencia, 04=T.Crédito, 05=Monedero, 06=Dinero electrónico, 28=T.Débito
+  //    Efectivo (01) → NO acredita IVA según SAT
+  //    PPD sin complemento → no deducible (no pagado)
+  // 4. Para CFDI tipo P (complemento de pago): forma de pago bancarizada + FechaPago en el mes
+  // Ref: Art.5 LIVA, RMF regla 4.1.6, Art.27-III LISR
+  const FORMAS_BANCARIZADAS = ['02','03','04','05','06','28'];
   function esDeducible(x, regCliente) {
-    if(x.usoCFDI === 'S01') return false;           // sin efectos fiscales
-    if(x.regimenR !== regCliente) return false;     // régimen receptor debe coincidir
-    if(x.tipo === 'P') return true;                 // complemento de pago = pagado
-    if(x.metodo === 'PUE') return true;             // pagado en una exhibición
-    return false;                                   // PPD sin complemento = no pagado
+    if(x.usoCFDI === 'S01') return false;
+    if(x.regimenR !== regCliente) return false;
+    if(x.tipo === 'P') {
+      // Complemento de pago: bancarizado = acreditable
+      return FORMAS_BANCARIZADAS.includes(x.formaPagoP||x.metodo||'');
+    }
+    if(x.metodo === 'PUE') {
+      // PUE: solo si forma de pago bancarizada
+      return FORMAS_BANCARIZADAS.includes(x.forma||'');
+    }
+    return false; // PPD sin complemento
+  }
+  // Para complementos de pago: el IVA acreditable es ImporteP, no ivaTras
+  function ivaDeducibleDe(x) {
+    if(x.tipo === 'P') return x.ivaImporteP || 0;
+    return x.ivaTras || 0;
   }
   const regClienteCode = reg; // régimen activo del cliente (ej. '626')
-  const gastosDeducibles = recib.filter(x => esDeducible(x, regClienteCode));
-  const gastosNoDed = recib.filter(x => !esDeducible(x, regClienteCode));
+  // Filtrar complementos de pago por FechaPago que corresponda al mes seleccionado
+  function cpCorrespondeAlMes(x, mes, anio) {
+    if(x.tipo !== 'P') return true; // no es complemento, no filtrar
+    if(!x.fechaPagoP) return true;  // sin fecha, incluir
+    const fp = new Date(x.fechaPagoP);
+    return fp.getMonth()+1 === mes && fp.getFullYear() === anio;
+  }
+  const gastosDeducibles = recib.filter(x => esDeducible(x, regClienteCode) && cpCorrespondeAlMes(x, mesActivo, anio));
+  const gastosNoDed = recib.filter(x => !esDeducible(x, regClienteCode) || !cpCorrespondeAlMes(x, mesActivo, anio));
   let gastoBase=0,ivaAcred=0;
-  gastosDeducibles.forEach(x=>{gastoBase+=x.sub;ivaAcred+=x.ivaTras;});
+  gastosDeducibles.forEach(x=>{
+    gastoBase += x.tipo==='P' ? 0 : x.sub; // complementos no suman base, solo IVA
+    ivaAcred += ivaDeducibleDe(x);          // IVA: ImporteP para complementos, ivaTras para PUE
+  });
   let r={};
   if(reg==='626'){
     // ISR RESICO: tasa sobre TOTAL de ingresos cobrados sin deducción (Art.113-E LISR)
@@ -807,12 +920,19 @@ function renderRes(r){
   <table class="det-table"><thead><tr><th>Fecha</th><th>RFC emisor</th><th>Concepto</th><th>Reg.R</th><th>Met</th><th>Estado</th><th class="num">Subtotal</th><th class="num">IVA</th></tr></thead><tbody>
   ${r.recib.map(x=>{
     const ded=(r.gastosDeducibles||[]).includes(x);
+    const BANC=['02','03','04','05','06','28'];
     const razones=[];
     if(x.usoCFDI==='S01') razones.push('S01');
-    else if(x.tipo==='P') razones.push('Pago ✓');
-    else if(x.metodo==='PUE'&&x.regimenR===(regActivo||'626')) razones.push('PUE ✓');
+    else if(x.regimenR!==(regActivo||'626')) razones.push('Reg≠'+x.regimenR);
+    else if(x.tipo==='P'){
+      const fp=x.formaPagoP||'';
+      razones.push(BANC.includes(fp)?'Pago ✓ ('+fp+')':'Pago no bancarizado ('+fp+')');
+    }
+    else if(x.metodo==='PUE'){
+      const fo=x.forma||'';
+      razones.push(BANC.includes(fo)?'PUE ✓ ('+fo+')':'Efectivo '+fo);
+    }
     else if(x.metodo==='PPD') razones.push('PPD s/pago');
-    else if(x.regimenR!==(regActivo||'626')) razones.push('Reg≠626');
     return `<tr style="${ded?'':'opacity:.5'}">
       <td style="white-space:nowrap;font-size:10px">${x.fecha.substring(0,10)}</td>
       <td><div style="font-family:var(--mono);font-size:10px">${x.rfcE}</div><div style="font-size:10px;color:var(--text2)">${x.nomE.substring(0,25)}</div></td>
