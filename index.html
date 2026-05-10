@@ -663,7 +663,7 @@ function parseXML(text,name){
     const em=doc.querySelector('Emisor'),re=doc.querySelector('Receptor');
     const rfcE=em?.getAttribute('Rfc')||'',nomE=em?.getAttribute('Nombre')||'';
     const rfcR=re?.getAttribute('Rfc')||'',nomR=re?.getAttribute('Nombre')||'';
-    const regimenR=re?.getAttribute('RegimenFiscal')||'';
+    const regimenR=re?.getAttribute('RegimenFiscalReceptor')||'';
     const usoCFDI=re?.getAttribute('UsoCFDI')||'';
     const imp=doc.querySelector('Comprobante > Impuestos');
     let ivaTras=0,ivaRet=0,isrRet=0,ivaEx=0;
