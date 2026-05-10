@@ -723,7 +723,7 @@ function limpiarXML(){
 }
 
 // ── XML PARSER ────────────────────────────────────────
-function parseXML(text,name){
+function parseXML(text,name){ // text = raw XML string
   try{
     const doc=new DOMParser().parseFromString(text,'text/xml');
     const c=doc.querySelector('Comprobante');if(!c)return{err:true,name};
@@ -759,7 +759,13 @@ function parseXML(text,name){
         if(t.getAttribute('ImpuestoP')==='002') ivaImporteP+=parseFloat(t.getAttribute('ImporteP')||0);
       });
     }
-    return{name,uuid,tipo,fecha,sub,total,rfcE,nomE,rfcR,nomR,regimenR,usoCFDI,ivaTras,ivaRet,isrRet,ivaEx,metodo,forma,formaPagoP,ivaImporteP,fechaPagoP,conceptos,esNom,err:false};
+    // Detectar si es CFDI de combustible (ClaveProdServ gasolina/diesel)
+    const claveProd = doc.querySelector('Concepto')?.getAttribute('ClaveProdServ')||'';
+    const CLAVES_COMB_P = ['15101514','15101515','15101513','15101516','15101517','15101518','15101519'];
+    const esCombustible = CLAVES_COMB_P.includes(claveProd);
+    // Detectar complemento HidroYPetro en el XML
+    const tieneHidro = !!doc.querySelector('HidroYPetro') || text.includes('HidroYPetro') || text.includes('hidrocarburospetroliferos');
+    return{name,uuid,tipo,fecha,sub,total,rfcE,nomE,rfcR,nomR,regimenR,usoCFDI,ivaTras,ivaRet,isrRet,ivaEx,metodo,forma,formaPagoP,ivaImporteP,fechaPagoP,conceptos,esNom,esCombustible,tieneHidro,claveProd,err:false};
   }catch{return{err:true,name};}
 }
 
@@ -822,11 +828,21 @@ async function procesar(){
   }
   const gastosDeducibles = recib.filter(x => esDeducible(x, regClienteCode) && cpCorrespondeAlMes(x, mesActivo, anio));
   const gastosNoDed = recib.filter(x => !esDeducible(x, regClienteCode) || !cpCorrespondeAlMes(x, mesActivo, anio));
+  // CPs de otro mes (excluidos por FechaPago)
+  const cpOtroMes = recib.filter(x => x.tipo==='P' && esDeducible(x, regClienteCode) && !cpCorrespondeAlMes(x, mesActivo, anio));
+  // IVA acreditable total (incluye combustibles — contribuyente tiene derecho)
   let gastoBase=0,ivaAcred=0;
   gastosDeducibles.forEach(x=>{
-    gastoBase += x.tipo==='P' ? 0 : x.sub; // complementos no suman base, solo IVA
-    ivaAcred += ivaDeducibleDe(x);          // IVA: ImporteP para complementos, ivaTras para PUE
+    gastoBase += x.tipo==='P' ? 0 : x.sub;
+    ivaAcred += ivaDeducibleDe(x);
   });
+  // IVA precarga SAT (excluye ClaveProdServ de combustibles — sistema SAT no los precarga)
+  const CLAVES_COMB = ['15101514','15101515','15101513','15101516','15101517','15101518','15101519'];
+  const gastosDedSinComb = gastosDeducibles.filter(x => !CLAVES_COMB.includes(x.claveProd||''));
+  const gastosDedComb = gastosDeducibles.filter(x => CLAVES_COMB.includes(x.claveProd||''));
+  let ivaAcredSAT=0;
+  gastosDedSinComb.forEach(x=>{ ivaAcredSAT += ivaDeducibleDe(x); });
+  const ivaAcredComb = gastosDedComb.reduce((s,x)=>s+ivaDeducibleDe(x),0);
   let r={};
   if(reg==='626'){
     // ISR RESICO: tasa sobre TOTAL de ingresos cobrados sin deducción (Art.113-E LISR)
@@ -851,7 +867,7 @@ async function procesar(){
     r={reg:'606',rl:'Arrendamiento',ingGrav,ded,base,isrCalc,isrRetI,isrCargo,ivaTrasI,ivaRetI,ivaAcred,ivaP,gastoBase,emit,recib,gastosDeducibles,gastosNoDed};
   }
   if(cliActivo.rSal&&noms.length)r.salInfo={total:noms.reduce((s,x)=>s+x.sub,0),isrRet:noms.reduce((s,x)=>s+x.isrRet,0),n:noms.length};
-  r.mes=mesActivo;r.anio=anio;
+  r.mes=mesActivo;r.anio=anio;r.cpOtroMes=cpOtroMes;r.ivaAcredSAT=ivaAcredSAT;r.ivaAcredComb=ivaAcredComb;r.gastosDedComb=gastosDedComb;
   const entry={rfc,nom:cliActivo.nombre,mes:mesActivo,anio,rc:reg,rl:r.rl,isr:r.isrCargo||0,iva:r.ivaP||0,fecha:new Date().toISOString()};
   try{
     await window.dbSaveHist(entry);
@@ -879,6 +895,11 @@ function renderRes(r){
     <div style="font-size:11pt">${r.rl} | ${mesL}</div>
     <div style="font-size:8.5pt;color:#555">Fundamento: ${r.reg==='626'?'Art.113-E, 113-J LISR':r.reg==='612'?'Art.100-106 LISR':'Art.114-116 LISR'} | ${c.iva==='no'?'Art.15-XIV LIVA (exento)':'Art.1o., 5o. LIVA'} | RMF 2026</div>
   </div>`;
+  // Alertas de combustible
+  const cfdisComb = (r.gastosDeducibles||[]).filter(x=>x.esCombustible);
+  if(cfdisComb.length>0){
+    h+=`<div class="alert a-warn">⛽ <div><strong>${cfdisComb.length} CFDI de combustible incluido(s)</strong> — IVA acreditable: ${fmt(cfdisComb.reduce((s,x)=>s+x.ivaTras,0))}. El SAT puede no precargarlo automáticamente en abril 2026 por el nuevo complemento HidroYPetro (Regla 2.7.1.48 RMF 2026). <strong>Si no aparece en la precarga, captúralo manualmente al declarar — tienes el soporte del CFDI válido.</strong></div></div>`;
+  }
   if(!r.ingGrav&&!r.emit.length)h+=`<div class="alert a-warn">⚠ No se encontraron CFDI emitidos por este RFC. Verifica los XML cargados.</div>`;
   if(c.iva==='no')h+=`<div class="alert a-info">ℹ Actividad exenta de IVA — Art. 15 Fracc. XIV LIVA. Solo ISR mensual.</div>`;
   if(c.iva==='mixto')h+=`<div class="alert a-warn">⚠ Actividad mixta — IVA acreditable en proporción Art. 5 Fracc. V inc. c) LIVA.</div>`;
@@ -905,7 +926,24 @@ function renderRes(r){
     h+=`<div class="res-section"><div class="sec-title">Cálculo IVA <span class="art">Art.1o., 5o. LIVA</span></div><table class="calc-table"><tr><td>IVA trasladado 16% <span class="art">Art.1o. LIVA</span></td><td class="pos">${fmt(r.ivaTrasI)}</td></tr><tr><td class="neg">(−) IVA retenido PM <span class="art">Art.1o-A LIVA</span></td><td class="neg">−${fmt(r.ivaRetI)}</td></tr>`;
     if(c.iva==='mixto'){const tot=(r.ingGravIVA||r.ingGrav)+r.ingEx,prop=tot>0?(r.ingGravIVA||r.ingGrav)/tot:0;h+=`<tr class="sub"><td>Base IVA gravada</td><td>${fmt(r.ingGravIVA||r.ingGrav)}</td></tr><tr class="sub"><td>Proporción gravado/total <span class="art">Art.5-V-c LIVA</span></td><td>${pct(prop)}</td></tr><tr><td class="neg">(−) IVA acreditable proporcional</td><td class="neg">−${fmt(r.ivaPropAcred)}</td></tr>`;}
     else h+=`<tr><td class="neg">(−) IVA acreditable gastos <span class="art">Art.5o. LIVA</span></td><td class="neg">−${fmt(r.ivaAcred)}</td></tr>`;
-    h+=`<tr class="tot"><td>${(r.ivaF||0)>0?'Saldo a favor':'IVA a pagar'}</td><td class="${(r.ivaF||0)>0?'pos':'neg'}">${fmt((r.ivaF||0)>0?r.ivaF:r.ivaP)}</td></tr></table></div>`;
+    // Show SAT precarga IVA vs total
+    const ivaNetaSAT = Math.max(0, (r.ivaTrasI||0) - (r.ivaRetI||0) - (r.ivaAcredSAT||r.ivaAcred||0));
+    const ivaFavorSAT = Math.max(0, (r.ivaRetI||0) + (r.ivaAcredSAT||r.ivaAcred||0) - (r.ivaTrasI||0));
+    h+=`<tr class="tot"><td>IVA a pagar (base precarga SAT — sin combustibles)</td><td class="${ivaFavorSAT>0?'pos':'neg'}">${ivaFavorSAT>0?'FAV '+fmt(ivaFavorSAT):fmt(ivaNetaSAT)}</td></tr>`;
+    if((r.ivaAcredComb||0)>0){
+      h+=`<tr class="sub"><td style="color:var(--warn)">⛽ IVA combustibles (captura manual en SAT — Art.5 LIVA)</td><td style="color:var(--warn)">−${fmt(r.ivaAcredComb)}</td></tr>`;
+      const ivaConComb = Math.max(0, (r.ivaTrasI||0) - (r.ivaRetI||0) - (r.ivaAcred||0));
+      const ivaFavConComb = Math.max(0, (r.ivaRetI||0) + (r.ivaAcred||0) - (r.ivaTrasI||0));
+      h+=`<tr style="font-weight:600"><td style="padding:7px 11px;color:var(--accent2)">IVA a pagar (total con combustibles)</td><td style="text-align:right;font-family:var(--mono);font-weight:600;color:${ivaFavConComb>0?'var(--accent)':'var(--danger)'};">${ivaFavConComb>0?'FAV '+fmt(ivaFavConComb):fmt(ivaConComb)}</td></tr>`;
+    }
+    h+=`</table>`;
+    if((r.cpOtroMes||[]).length>0){
+      h+=`<div style="font-size:11px;color:var(--text2);margin-top:6px;padding:7px 10px;background:var(--surface2);border-radius:var(--r)">
+        ℹ️ <strong>${r.cpOtroMes.length} complemento(s) de pago excluido(s)</strong> porque su FechaPago no corresponde al mes procesado:<br>
+        ${r.cpOtroMes.map(x=>`• ${x.rfcE} — FechaPago: ${x.fechaPagoP?.substring(0,10)} → pertenece al mes ${new Date(x.fechaPagoP).toLocaleString('es-MX',{month:'long'})} (IVA: ${fmt(x.ivaImporteP)})`).join('<br>')}
+      </div>`;
+    }
+    h+=`</div>`;
     h+=`</div>`; // close tab-iva
   }else{
     h+=`<div class="alert a-ok">✓ Sin IVA — Art. 15 Fracc. XIV LIVA: servicios médicos exentos.</div>`;
@@ -939,15 +977,15 @@ function renderRes(r){
       <td style="font-size:10px;color:var(--text2)">${x.conceptos.substring(0,40)}…</td>
       <td style="font-family:var(--mono);font-size:10px">${x.regimenR||'—'}</td>
       <td style="font-family:var(--mono);font-size:10px">${x.metodo||x.tipo}</td>
-      <td style="font-size:10px;color:${ded?'var(--accent)':'var(--danger)'}">${razones.join(', ')}</td>
+      <td style="font-size:10px;color:${ded?'var(--accent)':'var(--danger)'}">${razones.join(', ')}${x.esCombustible?'<span style="background:rgba(255,179,71,.15);color:var(--warn);font-size:9px;padding:1px 4px;border-radius:3px;margin-left:4px">⛽'+(x.tieneHidro?' HidroYPetro✓':'')+'</span>':''}</td>
       <td class="num" style="color:${ded?'inherit':'var(--danger)'}">${fmt(x.sub)}</td>
-      <td class="num" style="color:${ded?'inherit':'var(--danger)'}">${fmt(x.ivaTras)}</td>
+      <td class="num" style="color:${ded?'inherit':'var(--danger)'}" title="${x.tipo==='P'?'ImporteP del complemento':''}">${fmt(x.tipo==='P'?x.ivaImporteP:x.ivaTras)}${x.tipo==='P'&&x.ivaImporteP>0?'<span style="font-size:9px;color:var(--accent)"> CP</span>':''}</td>
     </tr>`;
   }).join('')}
   </tbody>
   <tfoot>
-    <tr style="font-weight:600;background:var(--surface2)"><td colspan="6" style="font-family:var(--mono);font-size:10px;padding:6px 8px">DEDUCIBLES (${gd.length})</td><td class="num">${fmt(gd.reduce((s,x)=>s+x.sub,0))}</td><td class="num">${fmt(gd.reduce((s,x)=>s+x.ivaTras,0))}</td></tr>
-    ${gnd.length?`<tr style="opacity:.6"><td colspan="6" style="font-family:var(--mono);font-size:10px;padding:6px 8px">NO DEDUCIBLES (${gnd.length})</td><td class="num">${fmt(gnd.reduce((s,x)=>s+x.sub,0))}</td><td class="num">${fmt(gnd.reduce((s,x)=>s+x.ivaTras,0))}</td></tr>`:''}
+    <tr style="font-weight:600;background:var(--surface2)"><td colspan="6" style="font-family:var(--mono);font-size:10px;padding:6px 8px">DEDUCIBLES (${gd.length})</td><td class="num">${fmt(gd.reduce((s,x)=>s+(x.tipo==='P'?0:x.sub),0))}</td><td class="num" style="color:var(--accent)">${fmt(gd.reduce((s,x)=>s+(x.tipo==='P'?x.ivaImporteP:x.ivaTras),0))}</td></tr>
+    ${gnd.length?`<tr style="opacity:.5"><td colspan="6" style="font-family:var(--mono);font-size:10px;padding:6px 8px">NO DEDUCIBLES (${gnd.length})</td><td class="num">${fmt(gnd.reduce((s,x)=>s+x.sub,0))}</td><td class="num">${fmt(gnd.reduce((s,x)=>s+x.ivaTras,0))}</td></tr>`:''}
   </tfoot></table></div>`;
 }
   h+=`<div class="pt-footer" style="display:none">FiscoDesk MX | Elaborado: ${new Date().toLocaleDateString('es-MX')} | LISR 2026 · LIVA 2026 · RMF 2026 (DOF 28-12-2025)</div>`;
