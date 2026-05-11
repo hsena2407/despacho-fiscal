@@ -1672,7 +1672,9 @@ function parseXML(text,name){ // text = raw XML string
     doc.querySelectorAll('Traslado').forEach(t=>{if(t.getAttribute('TipoFactor')==='Exento')ivaEx+=parseFloat(t.getAttribute('Base')||0);});
     const conceptos=[...doc.querySelectorAll('Concepto')].map(x=>x.getAttribute('Descripcion')).join(' | ');
     const esNom=!!(doc.querySelector('nomina12\\:Nomina,Nomina')||tipo==='N');
-    // Forma de pago del CFDI (para gastos PUE)
+    // Serie, folio y forma de pago
+    const serie=c.getAttribute('Serie')||'';
+    const folio=c.getAttribute('Folio')||'';
     const forma=c.getAttribute('FormaPago')||'';
     // Para complementos de pago: leer FormaDePagoP e ImporteP del IVA
     let formaPagoP='', ivaImporteP=0, fechaPagoP='';
@@ -1692,7 +1694,7 @@ function parseXML(text,name){ // text = raw XML string
     const esCombustible = CLAVES_COMB_P.includes(claveProd);
     // Detectar complemento HidroYPetro en el XML
     const tieneHidro = !!doc.querySelector('HidroYPetro') || text.includes('HidroYPetro') || text.includes('hidrocarburospetroliferos');
-    return{name,uuid,tipo,fecha,sub,total,rfcE,nomE,rfcR,nomR,regimenR,usoCFDI,ivaTras,ivaRet,isrRet,ivaEx,metodo,forma,formaPagoP,ivaImporteP,fechaPagoP,conceptos,esNom,esCombustible,tieneHidro,claveProd,err:false};
+    return{name,uuid,tipo,fecha,serie,folio,sub,total,rfcE,nomE,rfcR,nomR,regimenR,usoCFDI,ivaTras,ivaRet,isrRet,ivaEx,metodo,forma,formaPagoP,ivaImporteP,fechaPagoP,conceptos,esNom,esCombustible,tieneHidro,claveProd,err:false};
   }catch{return{err:true,name};}
 }
 
@@ -1887,43 +1889,98 @@ function renderRes(r){
   }
   h+=`</div>`; // close tabs-wrap
   if(r.salInfo){h+=`<div class="res-section"><div class="sec-title">Sueldos y Salarios <span class="art">Art.94-96 LISR</span></div><div class="alert a-info">ℹ ISR retenido por el patrón (Art.96). Régimen independiente del RESICO.</div><table class="calc-table"><tr><td>CFDI nómina recibidos</td><td>${r.salInfo.n}</td></tr><tr><td>Total percepciones</td><td class="pos">${fmt(r.salInfo.total)}</td></tr><tr class="tot"><td>ISR retenido por patrón</td><td>${fmt(r.salInfo.isrRet)}</td></tr></table></div>`;}
-  if(r.emit.length){h+=`<div class="res-section"><div class="sec-title">CFDI emitidos — ingresos (${r.emit.length})</div><table class="det-table"><thead><tr><th>Fecha</th><th>RFC receptor</th><th>Concepto</th><th class="num">Subtotal</th><th class="num">IVA</th><th class="num">IVA ret</th><th class="num">ISR ret</th></tr></thead><tbody>${r.emit.map(x=>`<tr><td style="white-space:nowrap">${x.fecha.substring(0,10)}</td><td><div style="font-family:var(--mono);font-size:10px">${x.rfcR}</div><div style="font-size:11px;color:var(--text2)">${x.nomR.substring(0,28)}</div></td><td style="font-size:10px;color:var(--text2)">${x.conceptos.substring(0,45)}…</td><td class="num">${fmt(x.sub)}</td><td class="num">${fmt(x.ivaTras)}</td><td class="num">${x.ivaRet>0?fmt(x.ivaRet):'—'}</td><td class="num">${x.isrRet>0?fmt(x.isrRet):'—'}</td></tr>`).join('')}</tbody><tfoot><tr style="font-weight:600;background:var(--surface2)"><td colspan="3" style="font-family:var(--mono);font-size:10px;padding:6px 8px">TOTALES</td><td class="num">${fmt(r.emit.reduce((s,x)=>s+x.sub,0))}</td><td class="num">${fmt(r.emit.reduce((s,x)=>s+x.ivaTras,0))}</td><td class="num">${fmt(r.emit.reduce((s,x)=>s+x.ivaRet,0))}</td><td class="num">${fmt(r.emit.reduce((s,x)=>s+x.isrRet,0))}</td></tr></tfoot></table></div>`;}
+  if(r.emit.length){
+  const emitOrd=[...r.emit].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
+  const fD=f=>({'01':'Efectivo','02':'Cheque','03':'Transferencia','04':'T.Crédito','28':'T.Débito','05':'Monedero','06':'D.Electrónico','99':'Por definir'}[f]||f||'—');
+  h+=`<div class="res-section"><div class="sec-title">CFDI emitidos — ingresos (${r.emit.length}) <span class="art">ordenados por fecha</span></div>
+  <div style="overflow-x:auto"><table class="det-table"><thead><tr>
+    <th>Fecha</th><th>Serie-Folio</th><th>RFC Receptor</th><th>Régimen</th><th>Concepto</th>
+    <th>Método</th><th>Forma Pago</th>
+    <th class="num">Subtotal</th><th class="num">IVA</th><th class="num">IVA Ret</th><th class="num">ISR Ret</th><th class="num">Total</th>
+  </tr></thead><tbody>
+  ${emitOrd.map(x=>`<tr>
+    <td style="white-space:nowrap;font-size:10px">${x.fecha?.substring(0,10)||'—'}</td>
+    <td style="font-family:var(--mono);font-size:10px;white-space:nowrap">${(x.serie||'')} ${(x.folio||'')}</td>
+    <td><div style="font-family:var(--mono);font-size:10px">${x.rfcR}</div><div style="font-size:10px;color:var(--text2)">${x.nomR.substring(0,22)}</div></td>
+    <td style="font-family:var(--mono);font-size:10px;text-align:center">${x.regimenR||'—'}</td>
+    <td style="font-size:10px;color:var(--text2);max-width:150px">${x.conceptos.substring(0,50)}</td>
+    <td style="text-align:center"><span style="font-size:9px;padding:1px 5px;border-radius:3px;font-family:var(--mono);background:${x.metodo==='PUE'?'rgba(0,102,204,.1)':'rgba(255,179,71,.1)'};color:${x.metodo==='PUE'?'var(--accent)':'var(--warn)'}">${x.metodo||'—'}</span></td>
+    <td style="font-size:10px;white-space:nowrap">${fD(x.forma)}</td>
+    <td class="num">${fmt(x.sub)}</td>
+    <td class="num">${fmt(x.ivaTras)}</td>
+    <td class="num" style="color:${x.ivaRet>0?'var(--danger)':'var(--text3)'}">${x.ivaRet>0?fmt(x.ivaRet):'—'}</td>
+    <td class="num" style="color:${x.isrRet>0?'var(--danger)':'var(--text3)'}">${x.isrRet>0?fmt(x.isrRet):'—'}</td>
+    <td class="num" style="font-weight:600">${fmt(x.total)}</td>
+  </tr>`).join('')}
+  </tbody><tfoot><tr style="font-weight:600;background:var(--surface2)">
+    <td colspan="7" style="font-family:var(--mono);font-size:10px;padding:6px 8px">TOTALES (${r.emit.length})</td>
+    <td class="num">${fmt(r.emit.reduce((s,x)=>s+x.sub,0))}</td>
+    <td class="num">${fmt(r.emit.reduce((s,x)=>s+x.ivaTras,0))}</td>
+    <td class="num">${fmt(r.emit.reduce((s,x)=>s+x.ivaRet,0))}</td>
+    <td class="num">${fmt(r.emit.reduce((s,x)=>s+x.isrRet,0))}</td>
+    <td class="num">${fmt(r.emit.reduce((s,x)=>s+x.total,0))}</td>
+  </tr></tfoot></table></div></div>`;
+}
   if(r.recib.length){
   const gd=r.gastosDeducibles||r.recib;
   const gnd=r.gastosNoDed||[];
-  h+=`<div class="res-section"><div class="sec-title">CFDI recibidos — gastos (${r.recib.length} total · ${gd.length} deducibles)</div>
-  <table class="det-table"><thead><tr><th>Fecha</th><th>RFC emisor</th><th>Concepto</th><th>Reg.R</th><th>Met</th><th>Estado</th><th class="num">Subtotal</th><th class="num">IVA</th></tr></thead><tbody>
-  ${r.recib.map(x=>{
+  const recibOrd=[...r.recib].sort((a,b)=>{
+    const fa=a.tipo==='P'?(a.fechaPagoP||a.fecha||''):(a.fecha||'');
+    const fb=b.tipo==='P'?(b.fechaPagoP||b.fecha||''):(b.fecha||'');
+    return fa.localeCompare(fb);
+  });
+  const fD2=f=>({'01':'Efectivo','02':'Cheque','03':'Transferencia','04':'T.Crédito','28':'T.Débito','05':'Monedero','06':'D.Electrónico','99':'Por definir'}[f]||f||'—');
+  h+=`<div class="res-section"><div class="sec-title">CFDI recibidos — gastos (${r.recib.length} total · ${gd.length} deducibles) <span class="art">por fecha pago</span></div>
+  <div style="overflow-x:auto"><table class="det-table"><thead><tr>
+    <th>Fecha pago</th><th>RFC Emisor</th><th>Concepto</th>
+    <th>Reg.R</th><th>Método</th><th>Forma Pago</th><th>Estado</th>
+    <th class="num">Subtotal</th><th class="num">IVA</th>
+  </tr></thead><tbody>
+  ${recibOrd.map(x=>{
     const ded=(r.gastosDeducibles||[]).includes(x);
     const BANC=['02','03','04','05','06','28'];
     const razones=[];
     if(x.usoCFDI==='S01') razones.push('S01');
     else if(x.regimenR!==(regActivo||'626')) razones.push('Reg≠'+x.regimenR);
-    else if(x.tipo==='P'){
-      const fp=x.formaPagoP||'';
-      razones.push(BANC.includes(fp)?'Pago ✓ ('+fp+')':'Pago no bancarizado ('+fp+')');
-    }
-    else if(x.metodo==='PUE'){
-      const fo=x.forma||'';
-      razones.push(BANC.includes(fo)?'PUE ✓ ('+fo+')':'Efectivo '+fo);
-    }
+    else if(x.tipo==='P'){const fp=x.formaPagoP||'';razones.push(BANC.includes(fp)?'Pago ✓ ('+fp+')':'No bancarizado ('+fp+')');}
+    else if(x.metodo==='PUE'){const fo=x.forma||'';razones.push(BANC.includes(fo)?'PUE ✓ ('+fo+')':'Efectivo ('+fo+')');}
     else if(x.metodo==='PPD') razones.push('PPD s/pago');
-    return `<tr style="${ded?'':'opacity:.5'}">
-      <td style="white-space:nowrap;font-size:10px">${x.fecha.substring(0,10)}</td>
-      <td><div style="font-family:var(--mono);font-size:10px">${x.rfcE}</div><div style="font-size:10px;color:var(--text2)">${x.nomE.substring(0,25)}</div></td>
-      <td style="font-size:10px;color:var(--text2)">${x.conceptos.substring(0,40)}…</td>
-      <td style="font-family:var(--mono);font-size:10px">${x.regimenR||'—'}</td>
-      <td style="font-family:var(--mono);font-size:10px">${x.metodo||x.tipo}</td>
-      <td style="font-size:10px;color:${ded?'var(--accent)':'var(--danger)'}">${razones.join(', ')}${x.esCombustible?'<span style="background:rgba(255,179,71,.15);color:var(--warn);font-size:9px;padding:1px 4px;border-radius:3px;margin-left:4px">⛽'+(x.tieneHidro?' HidroYPetro✓':'')+'</span>':''}</td>
-      <td class="num" style="color:${ded?'inherit':'var(--danger)'}">${fmt(x.sub)}</td>
-      <td class="num" style="color:${ded?'inherit':'var(--danger)'}" title="${x.tipo==='P'?'ImporteP del complemento':''}">${fmt(x.tipo==='P'?x.ivaImporteP:x.ivaTras)}${x.tipo==='P'&&x.ivaImporteP>0?'<span style="font-size:9px;color:var(--accent)"> CP</span>':''}</td>
+    const fechaShow=x.tipo==='P'&&x.fechaPagoP?x.fechaPagoP.substring(0,10):(x.fecha?.substring(0,10)||'—');
+    const formaShow=fD2(x.tipo==='P'?x.formaPagoP:x.forma);
+    const metLabel=x.tipo==='P'?'CP':x.metodo||'—';
+    const metBg=x.tipo==='P'?'rgba(0,150,100,.12)':x.metodo==='PUE'?'rgba(0,102,204,.1)':'rgba(255,179,71,.1)';
+    const metCol=x.tipo==='P'?'#00aa66':x.metodo==='PUE'?'var(--accent)':'var(--warn)';
+    const ivaShow=x.tipo==='P'?(x.ivaImporteP||0):x.ivaTras;
+    return `<tr style="${ded?'':'opacity:.45'}">
+      <td style="white-space:nowrap;font-size:10px">
+        ${fechaShow}
+        ${x.tipo==='P'?`<div style="font-size:8px;color:#00aa66;font-weight:600">Complemento</div><div style="font-size:8px;color:var(--text3)">CFDI: ${x.fecha?.substring(0,10)||'—'}</div>`:''}
+      </td>
+      <td><div style="font-family:var(--mono);font-size:10px">${x.rfcE}</div><div style="font-size:10px;color:var(--text2)">${x.nomE.substring(0,22)}</div></td>
+      <td style="font-size:10px;color:var(--text2);max-width:140px">${x.conceptos.substring(0,45)}</td>
+      <td style="font-family:var(--mono);font-size:10px;text-align:center">${x.regimenR||'—'}</td>
+      <td style="text-align:center"><span style="font-size:9px;padding:1px 4px;border-radius:3px;font-family:var(--mono);background:${metBg};color:${metCol}">${metLabel}</span></td>
+      <td style="font-size:10px;white-space:nowrap">${formaShow}</td>
+      <td style="font-size:10px;color:${ded?'var(--accent)':'var(--danger)'}">
+        ${razones.join(', ')}
+        ${x.esCombustible?`<span style="color:var(--warn);font-size:9px;margin-left:3px">⛽${x.tieneHidro?'✓':''}</span>`:''}
+      </td>
+      <td class="num" style="color:${ded?'inherit':'var(--danger)'}">${fmt(x.tipo==='P'?0:x.sub)}</td>
+      <td class="num" style="color:${ded?'var(--accent)':'var(--danger)'}">
+        ${fmt(ivaShow)}${x.tipo==='P'&&ivaShow>0?'<span style="font-size:8px;color:var(--accent)"> CP</span>':''}
+      </td>
     </tr>`;
   }).join('')}
-  </tbody>
-  <tfoot>
-    <tr style="font-weight:600;background:var(--surface2)"><td colspan="6" style="font-family:var(--mono);font-size:10px;padding:6px 8px">DEDUCIBLES (${gd.length})</td><td class="num">${fmt(gd.reduce((s,x)=>s+(x.tipo==='P'?0:x.sub),0))}</td><td class="num" style="color:var(--accent)">${fmt(gd.reduce((s,x)=>s+(x.tipo==='P'?x.ivaImporteP:x.ivaTras),0))}</td></tr>
-    ${gnd.length?`<tr style="opacity:.5"><td colspan="6" style="font-family:var(--mono);font-size:10px;padding:6px 8px">NO DEDUCIBLES (${gnd.length})</td><td class="num">${fmt(gnd.reduce((s,x)=>s+x.sub,0))}</td><td class="num">${fmt(gnd.reduce((s,x)=>s+x.ivaTras,0))}</td></tr>`:''}
-  </tfoot></table></div>`;
+  </tbody><tfoot>
+    <tr style="font-weight:600;background:var(--surface2)"><td colspan="7" style="font-family:var(--mono);font-size:10px;padding:6px 8px">DEDUCIBLES (${gd.length})</td>
+      <td class="num">${fmt(gd.reduce((s,x)=>s+(x.tipo==='P'?0:x.sub),0))}</td>
+      <td class="num" style="color:var(--accent)">${fmt(gd.reduce((s,x)=>s+(x.tipo==='P'?(x.ivaImporteP||0):x.ivaTras),0))}</td>
+    </tr>
+    ${gnd.length?`<tr style="opacity:.5"><td colspan="7" style="font-family:var(--mono);font-size:10px;padding:6px 8px">NO DEDUCIBLES (${gnd.length})</td>
+      <td class="num">${fmt(gnd.reduce((s,x)=>s+x.sub,0))}</td>
+      <td class="num">${fmt(gnd.reduce((s,x)=>s+x.ivaTras,0))}</td>
+    </tr>`:''}
+  </tfoot></table></div></div>`;
 }
   h+=`<div class="pt-footer" style="display:none">FiscoDesk MX | Elaborado: ${new Date().toLocaleDateString('es-MX')} | LISR 2026 · LIVA 2026 · RMF 2026 (DOF 28-12-2025)</div>`;
   h+=`<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:16px">
