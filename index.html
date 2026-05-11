@@ -1370,9 +1370,9 @@ function handleXMLRecib(e){loadXMLRecib([...e.target.files].filter(f=>f.name.toL
 function detectarTipoXML(text){
   if(!cliActivo) return 'desconocido';
   const rfcCli = cliActivo.rfc;
-  // Usar DOM parser para buscar RFC de emisor y receptor — más confiable que regex
   try{
-    const doc = new DOMParser().parseFromString(text, 'text/xml');
+    const cleanText = text.charCodeAt(0)===0xFEFF ? text.slice(1) : text;
+    const doc = new DOMParser().parseFromString(cleanText, 'text/xml');
     const emisorEl = doc.querySelector('Emisor') || 
       [...doc.querySelectorAll('*')].find(e=>e.localName==='Emisor');
     const receptorEl = doc.querySelector('Receptor') || 
@@ -1675,7 +1675,9 @@ function limpiarXML(){
 // ── XML PARSER ────────────────────────────────────────
 function parseXML(text,name){ // text = raw XML string
   try{
-    const doc=new DOMParser().parseFromString(text,'text/xml');
+    // Limpiar BOM (\uFEFF) que OneFacture agrega al inicio del XML
+    const cleanText = text.charCodeAt(0)===0xFEFF ? text.slice(1) : text;
+    const doc=new DOMParser().parseFromString(cleanText,'text/xml');
     // Check for parse error
     const parseErr=doc.querySelector('parsererror');
     if(parseErr) return{err:true,name,errMsg:'XML inválido'};
