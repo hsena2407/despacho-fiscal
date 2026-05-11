@@ -1626,14 +1626,22 @@ function renderXMLChips(tipo){
   const chipsId = 'xml-chips-'+tipo;
   const cntId = 'xml-cnt-'+tipo;
   const w=document.getElementById(chipsId);
+  if(!w) return;
   w.style.display='grid';
+  let ok=0, err=0;
   w.innerHTML=files.map(f=>{
     const x=parseXML(f.text,f.name);
-    return `<div class="chip ${x.err?'err':'i'}" title="${f.name}">${x.err?'⚠ ':'✓ '}${f.name.replace('.xml','').substring(0,20)}</div>`;
+    if(x.err) err++; else ok++;
+    const tipoLabel = x.err?'⚠':x.tipo==='P'?'CP':'✓';
+    const cls = x.err?'err':'i';
+    const title = x.err?'Error al leer XML':x.tipo==='P'?'Complemento de pago':'Válido';
+    return `<div class="chip ${cls}" title="${f.name} — ${title}">${tipoLabel} ${f.name.replace('.xml','').substring(0,20)}</div>`;
   }).join('');
-  document.getElementById(cntId).style.display='block';
-  document.getElementById(cntId).textContent = `${files.length} archivo${files.length!==1?'s':''} cargado${files.length!==1?'s':''}`;
-  // Show calculate button if at least emitidos loaded
+  const cntEl=document.getElementById(cntId);
+  if(cntEl){
+    cntEl.style.display='block';
+    cntEl.textContent = `${files.length} archivos${err>0?' ('+err+' con error)':''}`;
+  }
   if(xmlEmitidos.length > 0){
     document.getElementById('btns-proceso').style.display='flex';
   }
@@ -1652,8 +1660,11 @@ function limpiarXML(){
 function parseXML(text,name){ // text = raw XML string
   try{
     const doc=new DOMParser().parseFromString(text,'text/xml');
-    const c=doc.querySelector('Comprobante');if(!c)return{err:true,name};
-    const tipo=c.getAttribute('TipoDeComprobante');
+    // Buscar Comprobante con o sin namespace
+    let c=doc.querySelector('Comprobante');
+    if(!c) c=doc.documentElement; // fallback al elemento raíz
+    if(!c||(!c.getAttribute('TipoDeComprobante')&&!c.getAttribute('Version')))return{err:true,name};
+    const tipo=c.getAttribute('TipoDeComprobante')||'I';
     const uuid=doc.querySelector('TimbreFiscalDigital')?.getAttribute('UUID')||'';
     const fecha=c.getAttribute('Fecha')||'';
     const sub=parseFloat(c.getAttribute('SubTotal')||0);
@@ -1728,13 +1739,16 @@ async function procesar(){
   const compPagoEmit = todosEmit.filter(x=>x.tipo==='P');
   
   // Función: ¿el CFDI PPD tiene complemento de pago en este mes?
+  // Para INGRESOS: cualquier forma de pago es válida (efectivo, transferencia, etc.)
+  // Art.113-E LISR: ingresos efectivamente cobrados sin restricción de forma
   function ppd_tiene_cp(cfdi){
-    // Buscar CP del mismo emisor con FechaPago en el mes procesado
     return compPagoEmit.some(cp=>{
       if(!cp.fechaPagoP) return false;
       const fpMes = new Date(cp.fechaPagoP).getMonth()+1;
       const fpAnio = new Date(cp.fechaPagoP).getFullYear();
       return fpMes===mesActivo && fpAnio===anio;
+      // Nota: para ingresos NO se restringe por forma de pago
+      // La restricción de efectivo solo aplica para DEDUCCIONES (gastos)
     });
   }
 
@@ -1809,9 +1823,11 @@ async function procesar(){
   const regClienteCode = reg; // régimen activo del cliente (ej. '626')
   // Filtrar complementos de pago por FechaPago que corresponda al mes seleccionado
   function cpCorrespondeAlMes(x, mes, anio) {
-    if(x.tipo !== 'P') return true; // no es complemento, no filtrar
-    if(!x.fechaPagoP) return true;  // sin fecha, incluir
+    if(x.tipo !== 'P') return true; // no es complemento, siempre incluir
+    if(!x.fechaPagoP) return true;  // sin FechaPago, incluir por default
     const fp = new Date(x.fechaPagoP);
+    // El complemento pertenece al mes de su FechaPago, NO al mes de emisión del CFDI
+    // Esto permite incluir CPs emitidos en meses posteriores pero con pago en este mes
     return fp.getMonth()+1 === mes && fp.getFullYear() === anio;
   }
   const gastosDeducibles = recib.filter(x => esDeducible(x, regClienteCode) && cpCorrespondeAlMes(x, mesActivo, anio));
