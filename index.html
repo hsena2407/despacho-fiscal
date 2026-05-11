@@ -529,21 +529,27 @@ body{background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
       <div>
         <label style="display:block;font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px;font-family:var(--mono)">↑ XML EMITIDOS (ingresos)</label>
-        <div class="xml-drop" onclick="document.getElementById('xml-mgr-e').click()" ondragover="dOv(event,'xml-drop-e')" ondrop="dDropMgrE(event)">
+        <div class="xml-drop" ondragover="dOv(event,'xml-drop-e')" ondrop="dDropMgrE(event)" id="xml-drop-mgr-e">
           <div style="font-size:22px;margin-bottom:5px">📤</div>
           <h3>Carpeta o archivos emitidos</h3>
           <p>Selecciona la carpeta del año completo</p>
-          <input type="file" id="xml-mgr-e" accept=".xml" multiple webkitdirectory onchange="handleXMLMgrE(event)">
+          <div style="display:flex;gap:8px;justify-content:center;margin-top:8px;flex-wrap:wrap">
+            <label class="btn btn-sm btn-primary" style="cursor:pointer">📁 Seleccionar carpeta<input type="file" id="xml-mgr-e-dir" multiple webkitdirectory style="display:none" onchange="handleXMLMgrE(event)"></label>
+            <label class="btn btn-sm" style="cursor:pointer">📄 Archivos XML<input type="file" id="xml-mgr-e-files" accept=".xml" multiple style="display:none" onchange="handleXMLMgrE(event)"></label>
+          </div>
         </div>
         <div id="xml-mgr-cnt-e" style="display:none;margin-top:6px;font-size:12px;font-family:var(--mono);color:var(--accent)"></div>
       </div>
       <div>
         <label style="display:block;font-size:12px;font-weight:600;color:var(--warn);margin-bottom:6px;font-family:var(--mono)">↓ XML RECIBIDOS (gastos)</label>
-        <div class="xml-drop" onclick="document.getElementById('xml-mgr-r').click()" ondragover="dOv(event,'xml-drop-r')" ondrop="dDropMgrR(event)" style="border-color:rgba(230,126,34,.4)">
+        <div class="xml-drop" ondragover="dOv(event,'xml-drop-r')" ondrop="dDropMgrR(event)" id="xml-drop-mgr-r" style="border-color:rgba(230,126,34,.4)">
           <div style="font-size:22px;margin-bottom:5px">📥</div>
           <h3>Carpeta o archivos recibidos</h3>
           <p>Selecciona la carpeta del año completo</p>
-          <input type="file" id="xml-mgr-r" accept=".xml" multiple webkitdirectory onchange="handleXMLMgrR(event)">
+          <div style="display:flex;gap:8px;justify-content:center;margin-top:8px;flex-wrap:wrap">
+            <label class="btn btn-sm" style="cursor:pointer;background:rgba(230,126,34,.12);color:var(--warn);border-color:rgba(230,126,34,.3)">📁 Seleccionar carpeta<input type="file" id="xml-mgr-r-dir" multiple webkitdirectory style="display:none" onchange="handleXMLMgrR(event)"></label>
+            <label class="btn btn-sm" style="cursor:pointer">📄 Archivos XML<input type="file" id="xml-mgr-r-files" accept=".xml" multiple style="display:none" onchange="handleXMLMgrR(event)"></label>
+          </div>
         </div>
         <div id="xml-mgr-cnt-r" style="display:none;margin-top:6px;font-size:12px;font-family:var(--mono);color:var(--warn)"></div>
       </div>
@@ -1029,38 +1035,53 @@ function abrirGestionXML(){
   goPanel('xml',null);
 }
 
-function dDropMgrE(e){e.preventDefault();getFilesFromDrop(e.dataTransfer).then(files=>loadXMLMgr(files,'e'));}
-function dDropMgrR(e){e.preventDefault();getFilesFromDrop(e.dataTransfer).then(files=>loadXMLMgr(files,'r'));}
-function handleXMLMgrE(e){loadXMLMgr([...e.target.files].filter(f=>f.name.toLowerCase().endsWith('.xml')),'e');}
-function handleXMLMgrR(e){loadXMLMgr([...e.target.files].filter(f=>f.name.toLowerCase().endsWith('.xml')),'r');}
+function dDropMgrE(e){e.preventDefault();document.getElementById('xml-drop-mgr-e').classList.remove('drag');getFilesFromDrop(e.dataTransfer).then(files=>loadXMLMgr(files,'e'));}
+function dDropMgrR(e){e.preventDefault();document.getElementById('xml-drop-mgr-r').classList.remove('drag');getFilesFromDrop(e.dataTransfer).then(files=>loadXMLMgr(files,'r'));}
+function handleXMLMgrE(e){
+  const files=[...e.target.files];
+  e.target.value=''; // Reset para permitir re-selección
+  loadXMLMgr(files,'e');
+}
+function handleXMLMgrR(e){
+  const files=[...e.target.files];
+  e.target.value=''; // Reset para permitir re-selección
+  loadXMLMgr(files,'r');
+}
 
 function loadXMLMgr(files, tipo){
-  let p=files.length; if(!p)return;
+  const xmlFiles=[...files].filter(f=>f.name.toLowerCase().endsWith('.xml'));
+  let p=xmlFiles.length;
+  if(!p){toast('No se encontraron archivos .xml','err');return;}
+  toast('Cargando '+p+' archivos XML...');
   const store = tipo==='e'?xmlAnioEmit:xmlAnioRecib;
-  files.forEach(f=>{
-    const r=new FileReader();
-    r.onload=e=>{
-      const text=e.target.result;
+  let procesados=0, rechazados=0;
+  xmlFiles.forEach(f=>{
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const text=ev.target.result;
       const tipoXML=detectarTipoXML(text);
       if(tipo==='e'&&tipoXML==='recibido'){
-        toast('⚠ '+f.name.substring(0,20)+' es gasto — ponlo en recibidos','err');
-        if(--p===0) renderXMLMgrProgress();
-        return;
+        rechazados++;
+      } else if(tipo==='r'&&tipoXML==='emitido'){
+        rechazados++;
+      } else {
+        const mes=getMonthFromXML(text);
+        if(mes){
+          if(!store[mes]) store[mes]=[];
+          if(!store[mes].find(x=>x.name===f.name)){
+            store[mes].push({name:f.name,text});
+            procesados++;
+          }
+        }
       }
-      if(tipo==='r'&&tipoXML==='emitido'){
-        toast('⚠ '+f.name.substring(0,20)+' es ingreso — ponlo en emitidos','err');
-        if(--p===0) renderXMLMgrProgress();
-        return;
+      if(--p===0){
+        renderXMLMgrProgress();
+        const msg=`✓ ${procesados} XML cargados en ${Object.keys(store).length} meses${rechazados>0?' ('+rechazados+' rechazados)':''}`;
+        toast(msg);
       }
-      const mes=getMonthFromXML(text);
-      if(mes){
-        if(!store[mes]) store[mes]=[];
-        if(!store[mes].find(x=>x.name===f.name))
-          store[mes].push({name:f.name,text});
-      }
-      if(--p===0) renderXMLMgrProgress();
     };
-    r.readAsText(f,'UTF-8');
+    reader.onerror=()=>{ if(--p===0) renderXMLMgrProgress(); };
+    reader.readAsText(f,'UTF-8');
   });
 }
 
