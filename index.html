@@ -372,6 +372,31 @@ body{background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt}
 </div>
 
 <!-- PROCESO -->
+<!-- PANEL MESES DEL CLIENTE -->
+<div id="panel-meses" class="panel">
+  <div class="ph">
+    <div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button onclick="goPanel('clientes',document.querySelectorAll('.nav-item')[0])" style="background:none;border:none;cursor:pointer;color:var(--text2);font-size:13px;padding:0">← Clientes</button>
+        <span style="color:var(--text3)">/</span>
+        <div id="meses-cli-nombre" class="ph-title"></div>
+      </div>
+      <div id="meses-cli-rfc" class="ph-sub" style="margin-top:3px"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <select id="meses-anio" style="width:100px" onchange="renderMesesCliente()">
+        <option>2026</option><option>2025</option><option>2024</option>
+      </select>
+      <button class="btn btn-sm" onclick="abrirGestionXML()" title="Gestionar XML del cliente">
+        📂 Gestionar XML
+      </button>
+    </div>
+  </div>
+  <div class="content">
+    <div id="meses-grid-panel"></div>
+  </div>
+</div>
+
 <div id="panel-proceso" class="panel">
   <div class="ph">
     <div><div class="ph-title">Procesar mes</div><div class="ph-sub">Carga XML y genera papel de trabajo</div></div>
@@ -485,6 +510,59 @@ body{background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt}
 </div>
 
 <!-- HISTORIAL -->
+<!-- PANEL GESTIÓN XML -->
+<div id="panel-xml" class="panel">
+  <div class="ph">
+    <div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button onclick="goPanel('meses',null);renderMesesCliente()" style="background:none;border:none;cursor:pointer;color:var(--text2);font-size:13px;padding:0">← Volver</button>
+        <span style="color:var(--text3)">/</span>
+        <div class="ph-title">Gestión de XML</div>
+      </div>
+      <div id="xml-mgr-sub" class="ph-sub"></div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="alert a-info" style="margin-bottom:14px">
+      📦 Sube aquí <strong>todos los XML del año</strong> una sola vez. La app los guarda en la nube por mes. Después solo selecciona un mes y da clic en <strong>Calcular</strong>.
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px;font-family:var(--mono)">↑ XML EMITIDOS (ingresos)</label>
+        <div class="xml-drop" onclick="document.getElementById('xml-mgr-e').click()" ondragover="dOv(event,'xml-drop-e')" ondrop="dDropMgrE(event)">
+          <div style="font-size:22px;margin-bottom:5px">📤</div>
+          <h3>Carpeta o archivos emitidos</h3>
+          <p>Selecciona la carpeta del año completo</p>
+          <input type="file" id="xml-mgr-e" accept=".xml" multiple webkitdirectory onchange="handleXMLMgrE(event)">
+        </div>
+        <div id="xml-mgr-cnt-e" style="display:none;margin-top:6px;font-size:12px;font-family:var(--mono);color:var(--accent)"></div>
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--warn);margin-bottom:6px;font-family:var(--mono)">↓ XML RECIBIDOS (gastos)</label>
+        <div class="xml-drop" onclick="document.getElementById('xml-mgr-r').click()" ondragover="dOv(event,'xml-drop-r')" ondrop="dDropMgrR(event)" style="border-color:rgba(230,126,34,.4)">
+          <div style="font-size:22px;margin-bottom:5px">📥</div>
+          <h3>Carpeta o archivos recibidos</h3>
+          <p>Selecciona la carpeta del año completo</p>
+          <input type="file" id="xml-mgr-r" accept=".xml" multiple webkitdirectory onchange="handleXMLMgrR(event)">
+        </div>
+        <div id="xml-mgr-cnt-r" style="display:none;margin-top:6px;font-size:12px;font-family:var(--mono);color:var(--warn)"></div>
+      </div>
+    </div>
+
+    <div id="xml-mgr-progress" style="display:none">
+      <div class="sec-title">XML detectados por mes</div>
+      <div id="xml-mgr-grid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:8px"></div>
+      <div style="display:flex;gap:9px;margin-top:14px">
+        <button class="btn btn-primary" onclick="guardarXMLsMgr()">☁ Guardar todos en la nube</button>
+        <button class="btn" onclick="goPanel('meses',null);renderMesesCliente()">← Volver a meses</button>
+      </div>
+    </div>
+
+    <div class="sec-title" style="margin-top:16px">XML guardados en la nube por mes</div>
+    <div id="xml-mgr-saved" style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:8px"></div>
+  </div>
+</div>
+
 <div id="panel-historial" class="panel">
   <div class="ph"><div><div class="ph-title">Historial</div><div class="ph-sub">Papeles generados — guardados en la nube</div></div></div>
   <div class="content"><div id="hist-list"></div><div id="hist-empty" class="empty"><div class="ico">📋</div><h3>Sin historial</h3><p>Procesa el primer mes para ver aquí.</p></div></div>
@@ -792,6 +870,7 @@ function goPanel(id,el){
   if(id==='legal')renderLegal();
   if(id==='dashboard')renderDashboard();
   if(id==='usuarios')loadUsuarios();
+  if(id==='meses')renderMesesCliente();
   // Guardar panel activo en localStorage
   try{ localStorage.setItem('fd_panel', id); }catch(e){}
 }
@@ -818,16 +897,246 @@ window.renderCli = function(){
   const g=document.getElementById('clients-grid'),e=document.getElementById('clients-empty');
   if(!clientes.length){g.style.display='none';e.style.display='block';return;}
   g.style.display='grid';e.style.display='none';
+  const anioActual = new Date().getFullYear();
   g.innerHTML=clientes.map((c,i)=>{
-    const rs=regs(c),meses=window._historial.filter(h=>h.rfc===c.rfc).length;
-    return`<div class="client-card" onclick="verCli(${i})">
+    const rs=regs(c);
+    const histCli=window._historial.filter(h=>h.rfc===c.rfc&&h.anio===anioActual);
+    const mesesCalc=histCli.length;
+    const mesActual=new Date().getMonth()+1;
+    const calcMesActual=histCli.find(h=>h.mes===mesActual);
+    const tieneXMLs=true; // siempre mostramos opción calcular
+    return`<div class="client-card" onclick="abrirClienteMeses(${i})" style="cursor:pointer">
       <div class="client-rfc">${c.rfc}</div>
       <div class="client-name">${c.nombre}</div>
-      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:3px">${rs.map(r=>`<span class="badge ${r.cls}">${r.l}</span>`).join('')}${c.iva==='no'?'<span class="badge b-noiva">SIN IVA</span>':''}${c.iva==='mixto'?'<span class="badge b-mixto">IVA MIXTO</span>':''}</div>
-      <div class="client-meta"><span>${c.act||'—'}</span><span style="margin-left:auto">${meses} mes${meses!==1?'es':''}</span></div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">${rs.map(r=>`<span class="badge ${r.cls}">${r.l}</span>`).join('')}${c.iva==='no'?'<span class="badge b-noiva">SIN IVA</span>':''}${c.iva==='mixto'?'<span class="badge b-mixto">IVA MIXTO</span>':''}</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">
+        ${['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'].map((m,i)=>{
+          const h=histCli.find(x=>x.mes===i+1);
+          return`<span style="font-size:9px;font-family:var(--mono);padding:2px 4px;border-radius:3px;background:${h?'rgba(0,102,204,.12)':'var(--surface2)'};color:${h?'var(--accent)':'var(--text3)'}">${m}${h?'✓':''}</span>`;
+        }).join('')}
+      </div>
+      <div class="client-meta">
+        <span>${c.act||'—'}</span>
+        <span style="margin-left:auto;color:var(--accent);font-weight:500">${mesesCalc} mes${mesesCalc!==1?'es':''} calculados</span>
+      </div>
     </div>`;
   }).join('');
 };
+
+function abrirClienteMeses(idx){
+  detIdx=idx;
+  cliActivo=window._clientes[idx];
+  renderMesesCliente();
+  goPanel('meses', null);
+}
+
+function renderMesesCliente(){
+  if(!cliActivo) return;
+  const anio=parseInt(document.getElementById('meses-anio')?.value||2026);
+  const reg=regs(cliActivo)[0]?.code||'626';
+  regActivo=reg;
+
+  document.getElementById('meses-cli-nombre').textContent=cliActivo.nombre;
+  document.getElementById('meses-cli-rfc').textContent=cliActivo.rfc+' · '+cliActivo.act;
+
+  const histCli=window._historial.filter(h=>h.rfc===cliActivo.rfc&&h.anio===anio&&h.rc===reg);
+  const mesesCalc=histCli.map(h=>h.mes);
+
+  const grid=document.getElementById('meses-grid-panel');
+  if(!grid) return;
+
+  grid.innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:800px">
+      ${MF.map((mes,i)=>{
+        const n=i+1;
+        const h=histCli.find(x=>x.mes===n);
+        const calc=!!h;
+        const recalcs=h?.recalculos||0;
+        return`<div style="background:var(--surface);border:2px solid ${calc?'var(--accent)':'var(--border)'};border-radius:var(--rl);padding:18px;display:flex;flex-direction:column;gap:10px;transition:all .15s;${calc?'':'opacity:.85'}">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="font-size:15px;font-weight:600">${mes}</div>
+            ${calc?`<span style="font-size:10px;background:rgba(0,102,204,.1);color:var(--accent);padding:2px 7px;border-radius:10px;font-family:var(--mono)">✓ Calculado${recalcs>0?' ×'+(recalcs+1):''}</span>`:`<span style="font-size:10px;color:var(--text3);font-family:var(--mono)">Pendiente</span>`}
+          </div>
+          ${calc?`<div style="font-size:11px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+              <span style="color:var(--text2)">ISR a pagar</span>
+              <span style="font-family:var(--mono);color:var(--danger);font-weight:600">${fmt(h.isr)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <span style="color:var(--text2)">IVA</span>
+              <span style="font-family:var(--mono);color:var(--text2)">${fmt(h.iva)}</span>
+            </div>
+          </div>`:`<div style="font-size:11px;color:var(--text3)">Sin datos calculados</div>`}
+          <button class="btn btn-sm ${calc?'':'btn-primary'}" onclick="calcularMesDirecto(${n},${anio})"
+            style="width:100%;justify-content:center;${calc?'':'background:var(--accent);color:var(--bg);border-color:var(--accent)'}">
+            ${calc?'↺ Recalcular':'▶ Calcular'}
+          </button>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="margin-top:16px;padding:12px 14px;background:var(--surface2);border-radius:var(--r);border:1px solid var(--border);max-width:800px">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px">¿No tienes XML cargados aún?
+        <button onclick="abrirGestionXML()" class="btn btn-sm btn-primary" style="margin-left:8px">📂 Subir XML del cliente</button>
+      </div>
+    </div>
+  `;
+}
+
+async function calcularMesDirecto(mes, anio){
+  if(!cliActivo){toast('Sin cliente seleccionado','err');return;}
+
+  // Intentar cargar XML desde Firebase
+  mesActivo=mes;
+  document.getElementById('sel-anio').value=anio;
+
+  // Mostrar loading en el botón
+  toast('Cargando XML del mes de '+MF[mes-1]+'...');
+
+  // Cargar XMLs de Firebase para ese mes
+  limpiarXML();
+  let cargados=false;
+  for(const tipo of['e','r']){
+    const id=`${cliActivo.rfc}_${anio}_${mes}_${tipo}`;
+    try{
+      const data=await window.dbGetXML(id);
+      if(data&&data.archivos&&data.archivos.length){
+        if(tipo==='e'){xmlEmitidos=data.archivos;}
+        else{xmlRecibidos=data.archivos;}
+        cargados=true;
+      }
+    }catch(e){}
+  }
+
+  if(!cargados){
+    // No hay XML guardados — redirigir a gestión
+    toast('Sin XML guardados — sube los XML primero','err');
+    setTimeout(()=>abrirGestionXML(),1200);
+    return;
+  }
+
+  // Calcular
+  await procesar();
+
+  // Actualizar la vista de meses
+  renderMesesCliente();
+}
+
+function abrirGestionXML(){
+  if(!cliActivo) return;
+  document.getElementById('xml-mgr-sub').textContent=cliActivo.rfc+' — '+cliActivo.nombre;
+  xmlAnioEmit={};xmlAnioRecib={};
+  renderXMLMgrSaved();
+  goPanel('xml',null);
+}
+
+function dDropMgrE(e){e.preventDefault();getFilesFromDrop(e.dataTransfer).then(files=>loadXMLMgr(files,'e'));}
+function dDropMgrR(e){e.preventDefault();getFilesFromDrop(e.dataTransfer).then(files=>loadXMLMgr(files,'r'));}
+function handleXMLMgrE(e){loadXMLMgr([...e.target.files].filter(f=>f.name.toLowerCase().endsWith('.xml')),'e');}
+function handleXMLMgrR(e){loadXMLMgr([...e.target.files].filter(f=>f.name.toLowerCase().endsWith('.xml')),'r');}
+
+function loadXMLMgr(files, tipo){
+  let p=files.length; if(!p)return;
+  const store = tipo==='e'?xmlAnioEmit:xmlAnioRecib;
+  files.forEach(f=>{
+    const r=new FileReader();
+    r.onload=e=>{
+      const text=e.target.result;
+      const tipoXML=detectarTipoXML(text);
+      if(tipo==='e'&&tipoXML==='recibido'){
+        toast('⚠ '+f.name.substring(0,20)+' es gasto — ponlo en recibidos','err');
+        if(--p===0) renderXMLMgrProgress();
+        return;
+      }
+      if(tipo==='r'&&tipoXML==='emitido'){
+        toast('⚠ '+f.name.substring(0,20)+' es ingreso — ponlo en emitidos','err');
+        if(--p===0) renderXMLMgrProgress();
+        return;
+      }
+      const mes=getMonthFromXML(text);
+      if(mes){
+        if(!store[mes]) store[mes]=[];
+        if(!store[mes].find(x=>x.name===f.name))
+          store[mes].push({name:f.name,text});
+      }
+      if(--p===0) renderXMLMgrProgress();
+    };
+    r.readAsText(f,'UTF-8');
+  });
+}
+
+function renderXMLMgrProgress(){
+  const cntE=Object.values(xmlAnioEmit).reduce((s,a)=>s+a.length,0);
+  const cntR=Object.values(xmlAnioRecib).reduce((s,a)=>s+a.length,0);
+  const elE=document.getElementById('xml-mgr-cnt-e');
+  const elR=document.getElementById('xml-mgr-cnt-r');
+  if(elE){elE.style.display='block';elE.textContent=cntE+' XML emitidos ('+Object.keys(xmlAnioEmit).length+' meses)';}
+  if(elR){elR.style.display='block';elR.textContent=cntR+' XML recibidos ('+Object.keys(xmlAnioRecib).length+' meses)';}
+
+  const prog=document.getElementById('xml-mgr-progress');
+  const grid=document.getElementById('xml-mgr-grid');
+  if(!prog||!grid) return;
+  prog.style.display='block';
+
+  grid.innerHTML=MF.map((m,i)=>{
+    const mes=i+1;
+    const e=xmlAnioEmit[mes]?.length||0;
+    const r=xmlAnioRecib[mes]?.length||0;
+    const has=e>0||r>0;
+    return`<div style="background:${has?'rgba(0,102,204,.08)':'var(--surface2)'};border:1px solid ${has?'var(--accent)':'var(--border)'};border-radius:var(--r);padding:8px;text-align:center">
+      <div style="font-family:var(--mono);font-size:11px;font-weight:600;color:${has?'var(--accent)':'var(--text3)'}">${m.substring(0,3)}</div>
+      ${has?`<div style="font-size:9px;color:var(--text2);margin-top:3px">↑${e} ↓${r}</div>`:'<div style="font-size:9px;color:var(--text3)">—</div>'}
+    </div>`;
+  }).join('');
+}
+
+async function renderXMLMgrSaved(){
+  const grid=document.getElementById('xml-mgr-saved');
+  if(!grid||!cliActivo) return;
+  const anio=2026;
+  grid.innerHTML='<div style="color:var(--text3);font-size:12px">Verificando...</div>';
+
+  const savedMeses=[];
+  for(let mes=1;mes<=12;mes++){
+    let hasE=false,hasR=false,cntE=0,cntR=0;
+    for(const tipo of['e','r']){
+      const id=`${cliActivo.rfc}_${anio}_${mes}_${tipo}`;
+      try{
+        const data=await window.dbGetXML(id);
+        if(data&&data.archivos?.length){
+          if(tipo==='e'){hasE=true;cntE=data.archivos.length;}
+          else{hasR=true;cntR=data.archivos.length;}
+        }
+      }catch(e){}
+    }
+    savedMeses.push({mes,hasE,hasR,cntE,cntR});
+  }
+
+  grid.innerHTML=savedMeses.map(({mes,hasE,hasR,cntE,cntR})=>{
+    const has=hasE||hasR;
+    return`<div style="background:${has?'rgba(0,102,204,.06)':'var(--surface2)'};border:1px solid ${has?'var(--accent)':'var(--border)'};border-radius:var(--r);padding:8px;text-align:center">
+      <div style="font-family:var(--mono);font-size:11px;font-weight:600;color:${has?'var(--accent)':'var(--text3)'}">${MF[mes-1].substring(0,3)}</div>
+      ${has?`<div style="font-size:9px;color:var(--text2);margin-top:3px">↑${cntE} ↓${cntR}</div>`:'<div style="font-size:9px;color:var(--text3)">vacío</div>'}
+    </div>`;
+  }).join('');
+}
+
+async function guardarXMLsMgr(){
+  if(!cliActivo){toast('Sin cliente','err');return;}
+  const anio=2026;
+  let guardados=0;
+  const meses=new Set([...Object.keys(xmlAnioEmit),...Object.keys(xmlAnioRecib)].map(Number));
+  for(const mes of meses){
+    try{
+      if(xmlAnioEmit[mes]?.length) await window.dbSaveXMLs(cliActivo.rfc,mes,anio,'e',xmlAnioEmit[mes]);
+      if(xmlAnioRecib[mes]?.length) await window.dbSaveXMLs(cliActivo.rfc,mes,anio,'r',xmlAnioRecib[mes]);
+      guardados++;
+    }catch(e){console.warn(e);}
+  }
+  toast('☁ '+guardados+' meses guardados en la nube');
+  xmlAnioEmit={};xmlAnioRecib={};
+  renderXMLMgrProgress();
+  renderXMLMgrSaved();
+}
 
 function verCli(idx){
   // Ir directo a procesar sin mostrar modal
