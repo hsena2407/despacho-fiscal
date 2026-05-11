@@ -1632,9 +1632,9 @@ function renderXMLChips(tipo){
   w.innerHTML=files.map(f=>{
     const x=parseXML(f.text,f.name);
     if(x.err) err++; else ok++;
-    const tipoLabel = x.err?'⚠':x.tipo==='P'?'CP':'✓';
-    const cls = x.err?'err':'i';
-    const title = x.err?'Error al leer XML':x.tipo==='P'?'Complemento de pago':'Válido';
+    const tipoLabel = x.err?'⚠':x.tipo==='P'?'CP':x.tipo==='N'?'NOM':'✓';
+    const cls = x.err?'err':x.tipo==='P'?'e':'i';
+    const title = x.err?(x.errMsg||'Error al leer XML'):x.tipo==='P'?'Complemento de pago — FechaPago: '+(x.fechaPagoP?.substring(0,10)||'sin fecha'):'Válido';
     return `<div class="chip ${cls}" title="${f.name} — ${title}">${tipoLabel} ${f.name.replace('.xml','').substring(0,20)}</div>`;
   }).join('');
   const cntEl=document.getElementById(cntId);
@@ -1660,10 +1660,25 @@ function limpiarXML(){
 function parseXML(text,name){ // text = raw XML string
   try{
     const doc=new DOMParser().parseFromString(text,'text/xml');
-    // Buscar Comprobante con o sin namespace
-    let c=doc.querySelector('Comprobante');
-    if(!c) c=doc.documentElement; // fallback al elemento raíz
-    if(!c||(!c.getAttribute('TipoDeComprobante')&&!c.getAttribute('Version')))return{err:true,name};
+    // Check for parse error
+    const parseErr=doc.querySelector('parsererror');
+    if(parseErr) return{err:true,name,errMsg:'XML inválido'};
+    // Buscar Comprobante — puede venir con namespace cfdi: o sin él
+    let c=null;
+    // Intentar múltiples formas de encontrar el nodo raíz Comprobante
+    const root=doc.documentElement;
+    if(root && (root.localName==='Comprobante' || root.tagName==='cfdi:Comprobante')){
+      c=root;
+    } else {
+      c=doc.querySelector('Comprobante');
+      if(!c){
+        // Buscar por localName en todos los elementos del primer nivel
+        for(const el of doc.childNodes){
+          if(el.localName==='Comprobante'||el.nodeName?.includes('Comprobante')){c=el;break;}
+        }
+      }
+    }
+    if(!c) return{err:true,name,errMsg:'No se encontró nodo Comprobante'};
     const tipo=c.getAttribute('TipoDeComprobante')||'I';
     const uuid=doc.querySelector('TimbreFiscalDigital')?.getAttribute('UUID')||'';
     const fecha=c.getAttribute('Fecha')||'';
@@ -1726,6 +1741,18 @@ function parseXML(text,name){ // text = raw XML string
 async function procesar(){
   if(!cliActivo||!mesActivo){alert('Selecciona cliente y mes');return;}
   if(!xmlEmitidos.length){alert('Carga al menos los XML emitidos (ingresos)');return;}
+  
+  // ── DEBUG: mostrar qué detecta el parser en cada XML emitido ──
+  console.group('FiscoDesk Debug — XMLs emitidos cargados:');
+  xmlEmitidos.forEach(f=>{
+    const x=parseXML(f.text,f.name);
+    if(x.err){
+      console.warn(`❌ ${f.name.substring(0,36)} → ERROR: ${x.errMsg||'desconocido'}`);
+    } else {
+      console.log(`${x.tipo==='P'?'💳':'📄'} ${f.name.substring(0,36)} → tipo=${x.tipo} metodo=${x.metodo} fecha=${x.fecha?.substring(0,10)} fechaPagoP=${x.fechaPagoP?.substring(0,10)||'—'} sub=${x.sub?.toFixed(2)} ivaP=${x.ivaImporteP?.toFixed(2)||0}`);
+    }
+  });
+  console.groupEnd();
   const reg=regActivo||(regs(cliActivo)[0]?.code);if(!reg)return;
   const anio=parseInt(document.getElementById('sel-anio').value);
   const rfc=cliActivo.rfc;
