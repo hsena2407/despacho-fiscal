@@ -394,6 +394,7 @@ body{background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt}
   </div>
   <div class="content">
     <div id="meses-grid-panel"></div>
+    <div id="meses-resultados" style="margin-top:20px"></div>
   </div>
 </div>
 
@@ -497,9 +498,7 @@ body{background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt}
           <button class="btn btn-primary" onclick="guardarTodosXMLsAnio()" style="margin-top:12px">☁ Guardar todos en la nube</button>
         </div>
       </div>
-      <div style="margin-top:10px;display:flex;gap:8px">
-        <button class="btn btn-sm" onclick="cargarXMLsGuardados()" style="font-size:11px">☁ Cargar XML guardados</button>
-      </div>
+      <!-- XML se cargan automáticamente desde panel de meses -->
       <div id="btns-proceso" style="display:none;gap:9px;margin-top:12px">
         <button class="btn btn-primary" onclick="procesar()">▶ Calcular impuestos</button>
         <button class="btn" onclick="limpiarXML()">Limpiar todo</button>
@@ -973,7 +972,7 @@ function renderMesesCliente(){
               <span style="font-family:var(--mono);color:var(--text2)">${fmt(h.iva)}</span>
             </div>
           </div>`:`<div style="font-size:11px;color:var(--text3)">Sin datos calculados</div>`}
-          <button class="btn btn-sm ${calc?'':'btn-primary'}" onclick="calcularMesDirecto(${n},${anio})"
+          <button id="btn-mes-${n}" class="btn btn-sm ${calc?'':'btn-primary'}" onclick="calcularMesDirecto(${n},${anio})"
             style="width:100%;justify-content:center;${calc?'':'background:var(--accent);color:var(--bg);border-color:var(--accent)'}">
             ${calc?'↺ Recalcular':'▶ Calcular'}
           </button>
@@ -991,14 +990,17 @@ function renderMesesCliente(){
 async function calcularMesDirecto(mes, anio){
   if(!cliActivo){toast('Sin cliente seleccionado','err');return;}
 
-  // Intentar cargar XML desde Firebase
   mesActivo=mes;
   document.getElementById('sel-anio').value=anio;
 
-  // Mostrar loading en el botón
-  toast('Cargando XML del mes de '+MF[mes-1]+'...');
+  // Mostrar loading visual en la tarjeta del mes
+  const btnId=`btn-mes-${mes}`;
+  const btn=document.getElementById(btnId);
+  if(btn){btn.disabled=true;btn.textContent='Cargando...';}
 
-  // Cargar XMLs de Firebase para ese mes
+  toast('Cargando XML de '+MF[mes-1]+'...');
+
+  // Cargar XMLs de Firebase
   limpiarXML();
   let cargados=false;
   for(const tipo of['e','r']){
@@ -1006,25 +1008,44 @@ async function calcularMesDirecto(mes, anio){
     try{
       const data=await window.dbGetXML(id);
       if(data&&data.archivos&&data.archivos.length){
-        if(tipo==='e'){xmlEmitidos=data.archivos;}
-        else{xmlRecibidos=data.archivos;}
+        if(tipo==='e') xmlEmitidos=data.archivos;
+        else xmlRecibidos=data.archivos;
         cargados=true;
       }
     }catch(e){}
   }
 
   if(!cargados){
-    // No hay XML guardados — redirigir a gestión
-    toast('Sin XML guardados — sube los XML primero','err');
-    setTimeout(()=>abrirGestionXML(),1200);
+    // Sin XML — mostrar mensaje en la tarjeta sin redirigir
+    renderMesesCliente();
+    // Mostrar alerta en la vista de meses
+    const grid=document.getElementById('meses-grid-panel');
+    if(grid){
+      const alerta=document.createElement('div');
+      alerta.className='alert a-warn';
+      alerta.style.cssText='margin-top:12px;max-width:800px';
+      alerta.innerHTML=`⚠ Sin XML guardados para <strong>${MF[mes-1]}</strong>. 
+        <button class="btn btn-sm btn-primary" onclick="abrirGestionXML()" style="margin-left:10px">
+          📂 Subir XML del cliente
+        </button>`;
+      grid.after(alerta);
+      setTimeout(()=>alerta.remove(),5000);
+    }
     return;
   }
 
-  // Calcular
+  // Calcular directo — sin mostrar pantalla de XML
   await procesar();
 
-  // Actualizar la vista de meses
+  // Volver a la vista de meses con resultados actualizados
   renderMesesCliente();
+  
+  // Mostrar resultados debajo de los meses
+  const res=document.getElementById('resultados');
+  if(res&&res.style.display!=='none'){
+    // Scroll suave a los resultados
+    res.scrollIntoView({behavior:'smooth',block:'start'});
+  }
 }
 
 function abrirGestionXML(){
@@ -1370,9 +1391,9 @@ function handleXMLRecib(e){loadXMLRecib([...e.target.files].filter(f=>f.name.toL
 function detectarTipoXML(text){
   if(!cliActivo) return 'desconocido';
   const rfcCli = cliActivo.rfc;
+  // Usar DOM parser para buscar RFC de emisor y receptor — más confiable que regex
   try{
-    const cleanText = text.charCodeAt(0)===0xFEFF ? text.slice(1) : text;
-    const doc = new DOMParser().parseFromString(cleanText, 'text/xml');
+    const doc = new DOMParser().parseFromString(text, 'text/xml');
     const emisorEl = doc.querySelector('Emisor') || 
       [...doc.querySelectorAll('*')].find(e=>e.localName==='Emisor');
     const receptorEl = doc.querySelector('Receptor') || 
@@ -1675,9 +1696,7 @@ function limpiarXML(){
 // ── XML PARSER ────────────────────────────────────────
 function parseXML(text,name){ // text = raw XML string
   try{
-    // Limpiar BOM (\uFEFF) que OneFacture agrega al inicio del XML
-    const cleanText = text.charCodeAt(0)===0xFEFF ? text.slice(1) : text;
-    const doc=new DOMParser().parseFromString(cleanText,'text/xml');
+    const doc=new DOMParser().parseFromString(text,'text/xml');
     // Check for parse error
     const parseErr=doc.querySelector('parsererror');
     if(parseErr) return{err:true,name,errMsg:'XML inválido'};
@@ -1949,6 +1968,13 @@ async function procesar(){
   }catch(e){toast('Error al guardar historial','err');}
   lastRes={r,c:cliActivo};renderRes(r);
   document.getElementById('btns-acc').innerHTML=`<button class="btn btn-sm" onclick="window.print()">🖨 Imprimir</button>`;
+  // Si estamos en panel-meses, mostrar resultados ahí también
+  const mesesRes=document.getElementById('meses-resultados');
+  const mainRes=document.getElementById('resultados');
+  if(mesesRes&&document.getElementById('panel-meses')?.classList.contains('active')){
+    mesesRes.innerHTML=mainRes?.innerHTML||'';
+    mesesRes.style.display='block';
+  }
 }
 
 // ── RENDER RESULTADOS ─────────────────────────────────
