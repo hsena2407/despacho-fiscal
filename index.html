@@ -1689,22 +1689,28 @@ function parseXML(text,name){ // text = raw XML string
     // Para complementos de pago: leer FormaDePagoP e ImporteP del IVA
     let formaPagoP='', ivaImporteP=0, fechaPagoP='';
     if(tipo==='P'){
-      const pagoEl=doc.querySelector('Pago');
-      if(pagoEl){
-        formaPagoP=pagoEl.getAttribute('FormaDePagoP')||'';
-        fechaPagoP=pagoEl.getAttribute('FechaPago')||'';
-        // Monto total pagado (base para ingresos cobrados)
-        sub=parseFloat(pagoEl.getAttribute('Monto')||0);
-      }
-      doc.querySelectorAll('TrasladoP').forEach(t=>{
-        if(t.getAttribute('ImpuestoP')==='002') ivaImporteP+=parseFloat(t.getAttribute('ImporteP')||0);
+      // Los nodos de complemento están en namespace Pagos20
+      // querySelector no funciona con namespaces — usar getElementsByTagNameNS o iteración
+      const allEls = doc.querySelectorAll('*');
+      allEls.forEach(el=>{
+        const tag = el.localName || el.tagName?.split(':').pop() || '';
+        if(tag==='Pago'){
+          if(!formaPagoP) formaPagoP=el.getAttribute('FormaDePagoP')||'';
+          if(!fechaPagoP) fechaPagoP=el.getAttribute('FechaPago')||'';
+          const monto=parseFloat(el.getAttribute('Monto')||0);
+          if(monto>0) sub=monto;
+        }
+        if(tag==='TrasladoP'){
+          if(el.getAttribute('ImpuestoP')==='002')
+            ivaImporteP+=parseFloat(el.getAttribute('ImporteP')||0);
+        }
+        if(tag==='Totales'){
+          const baseIVA=parseFloat(el.getAttribute('TotalTrasladosBaseIVA16')||0);
+          const ivaTotal=parseFloat(el.getAttribute('TotalTrasladosImpuestoIVA16')||0);
+          if(baseIVA>0) sub=baseIVA;
+          if(ivaTotal>0 && ivaImporteP===0) ivaImporteP=ivaTotal;
+        }
       });
-      // Base sin IVA del complemento
-      const totales=doc.querySelector('Totales');
-      if(totales){
-        const baseIVA=parseFloat(totales.getAttribute('TotalTrasladosBaseIVA16')||0);
-        if(baseIVA>0) sub=baseIVA; // usar base sin IVA como subtotal
-      }
     }
     // Detectar si es CFDI de combustible (ClaveProdServ gasolina/diesel)
     const claveProd = doc.querySelector('Concepto')?.getAttribute('ClaveProdServ')||'';
