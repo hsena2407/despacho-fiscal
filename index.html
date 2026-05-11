@@ -418,8 +418,8 @@ body{background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt}
           <div class="xml-drop" id="xml-drop-e" onclick="document.getElementById('xml-inp-e').click()" ondragover="dOv(event,'xml-drop-e')" ondrop="dDropE(event)" ondragleave="document.getElementById('xml-drop-e').classList.remove('drag')">
             <div style="font-size:22px;margin-bottom:5px">📤</div>
             <h3>CFDI que emitió el cliente</h3>
-            <p>Facturas de ingresos emitidas por el contribuyente</p>
-            <input type="file" id="xml-inp-e" accept=".xml" multiple onchange="handleXMLEmit(event)">
+            <p>Archivos XML o carpeta completa · Facturas de ingresos</p>
+            <input type="file" id="xml-inp-e" accept=".xml" multiple webkitdirectory onchange="handleXMLEmit(event)">
           </div>
           <div id="xml-chips-e" class="xml-chips" style="display:none;margin-top:8px"></div>
           <div id="xml-cnt-e" style="display:none;margin-top:6px;font-size:12px;font-family:var(--mono);color:var(--accent)"></div>
@@ -430,8 +430,8 @@ body{background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt}
           <div class="xml-drop" id="xml-drop-r" onclick="document.getElementById('xml-inp-r').click()" ondragover="dOv(event,'xml-drop-r')" ondrop="dDropR(event)" ondragleave="document.getElementById('xml-drop-r').classList.remove('drag')" style="border-color:rgba(230,126,34,.4)">
             <div style="font-size:22px;margin-bottom:5px">📥</div>
             <h3>CFDI que recibió el cliente</h3>
-            <p>Gastos, compras y complementos de pago</p>
-            <input type="file" id="xml-inp-r" accept=".xml" multiple onchange="handleXMLRecib(event)">
+            <p>Archivos XML o carpeta completa · Gastos y compras</p>
+            <input type="file" id="xml-inp-r" accept=".xml" multiple webkitdirectory onchange="handleXMLRecib(event)">
           </div>
           <div id="xml-chips-r" class="xml-chips" style="display:none;margin-top:8px"></div>
           <div id="xml-cnt-r" style="display:none;margin-top:6px;font-size:12px;font-family:var(--mono);color:var(--warn)"></div>
@@ -449,9 +449,9 @@ body{background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt}
             <label style="display:block;font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px;font-family:var(--mono)">↑ TODOS LOS XML EMITIDOS DEL AÑO</label>
             <div class="xml-drop" onclick="document.getElementById('xml-inp-ae').click()" ondragover="dOv(event,'xml-drop-e')" ondrop="dDropAE(event)">
               <div style="font-size:22px;margin-bottom:5px">📦</div>
-              <h3>Arrastra todos los XML emitidos</h3>
-              <p>Enero a Diciembre — la app los separa por mes</p>
-              <input type="file" id="xml-inp-ae" accept=".xml" multiple onchange="handleXMLAnioEmit(event)">
+              <h3>Arrastra carpeta o XML emitidos</h3>
+              <p>Selecciona la carpeta del año — la app los separa por mes</p>
+              <input type="file" id="xml-inp-ae" accept=".xml" multiple webkitdirectory onchange="handleXMLAnioEmit(event)">
             </div>
             <div id="xml-cnt-ae" style="display:none;margin-top:6px;font-size:12px;font-family:var(--mono);color:var(--accent)"></div>
           </div>
@@ -459,9 +459,9 @@ body{background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt}
             <label style="display:block;font-size:12px;font-weight:600;color:var(--warn);margin-bottom:6px;font-family:var(--mono)">↓ TODOS LOS XML RECIBIDOS DEL AÑO</label>
             <div class="xml-drop" onclick="document.getElementById('xml-inp-ar').click()" ondragover="dOv(event,'xml-drop-r')" ondrop="dDropAR(event)" style="border-color:rgba(230,126,34,.4)">
               <div style="font-size:22px;margin-bottom:5px">📦</div>
-              <h3>Arrastra todos los XML recibidos</h3>
-              <p>Enero a Diciembre — la app los separa por mes</p>
-              <input type="file" id="xml-inp-ar" accept=".xml" multiple onchange="handleXMLAnioRecib(event)">
+              <h3>Arrastra carpeta o XML recibidos</h3>
+              <p>Selecciona la carpeta del año — la app los separa por mes</p>
+              <input type="file" id="xml-inp-ar" accept=".xml" multiple webkitdirectory onchange="handleXMLAnioRecib(event)">
             </div>
             <div id="xml-cnt-ar" style="display:none;margin-top:6px;font-size:12px;font-family:var(--mono);color:var(--warn)"></div>
           </div>
@@ -1029,9 +1029,12 @@ let xmlEmitidos = [], xmlRecibidos = [];
 
 function dOv(e, dropId){e.preventDefault();document.getElementById(dropId||'xml-drop-e').classList.add('drag');}
 function dDropE(e){e.preventDefault();document.getElementById('xml-drop-e').classList.remove('drag');loadXMLEmit([...e.dataTransfer.files].filter(f=>f.name.toLowerCase().endsWith('.xml')));}
-function dDropR(e){e.preventDefault();document.getElementById('xml-drop-r').classList.remove('drag');loadXMLRecib([...e.dataTransfer.files].filter(f=>f.name.toLowerCase().endsWith('.xml')));}
-function handleXMLEmit(e){loadXMLEmit([...e.target.files]);}
-function handleXMLRecib(e){loadXMLRecib([...e.target.files]);}
+function dDropR(e){
+  e.preventDefault();document.getElementById('xml-drop-r').classList.remove('drag');
+  getFilesFromDrop(e.dataTransfer).then(files=>loadXMLRecib(files));
+}
+function handleXMLEmit(e){loadXMLEmit([...e.target.files].filter(f=>f.name.toLowerCase().endsWith('.xml')));}
+function handleXMLRecib(e){loadXMLRecib([...e.target.files].filter(f=>f.name.toLowerCase().endsWith('.xml')));}
 
 // Detecta si un XML pertenece a la zona correcta
 function detectarTipoXML(text){
@@ -1110,6 +1113,43 @@ async function autoSaveXMLs(tipo){
 let xmlAnioEmit = {}; // {mes: [{name, text}]}
 let xmlAnioRecib = {};
 
+// ── Leer archivos de carpetas arrastradas recursivamente ────────────────
+async function getFilesFromDrop(dataTransfer){
+  const files = [];
+  const items = [...(dataTransfer.items||[])];
+
+  // Si el navegador soporta FileSystem API (Chrome/Edge)
+  if(items.length && items[0].webkitGetAsEntry){
+    const entries = items.map(i=>i.webkitGetAsEntry()).filter(Boolean);
+    for(const entry of entries){
+      await readEntry(entry, files);
+    }
+    return files.filter(f=>f.name.toLowerCase().endsWith('.xml'));
+  }
+  // Fallback: archivos planos
+  return [...(dataTransfer.files||[])].filter(f=>f.name.toLowerCase().endsWith('.xml'));
+}
+
+async function readEntry(entry, files){
+  if(entry.isFile){
+    await new Promise(resolve=>{
+      entry.file(f=>{files.push(f);resolve();}, ()=>resolve());
+    });
+  } else if(entry.isDirectory){
+    const reader = entry.createReader();
+    await new Promise(resolve=>{
+      function readAll(){
+        reader.readEntries(async entries=>{
+          if(!entries.length){resolve();return;}
+          for(const e of entries) await readEntry(e, files);
+          readAll(); // Leer más si hay > 100 entradas
+        }, ()=>resolve());
+      }
+      readAll();
+    });
+  }
+}
+
 function switchCargaMode(modo){
   document.getElementById('carga-mes-mode').style.display = modo==='mes'?'block':'none';
   document.getElementById('carga-anio-mode').style.display = modo==='anio'?'block':'none';
@@ -1127,10 +1167,10 @@ function getMonthFromXML(text){
   return null;
 }
 
-function dDropAE(e){e.preventDefault();loadXMLAnioEmit([...e.dataTransfer.files].filter(f=>f.name.toLowerCase().endsWith('.xml')));}
-function dDropAR(e){e.preventDefault();loadXMLAnioRecib([...e.dataTransfer.files].filter(f=>f.name.toLowerCase().endsWith('.xml')));}
-function handleXMLAnioEmit(e){loadXMLAnioEmit([...e.target.files]);}
-function handleXMLAnioRecib(e){loadXMLAnioRecib([...e.target.files]);}
+function dDropAE(e){e.preventDefault();getFilesFromDrop(e.dataTransfer).then(files=>loadXMLAnioEmit(files));}
+function dDropAR(e){e.preventDefault();getFilesFromDrop(e.dataTransfer).then(files=>loadXMLAnioRecib(files));}
+function handleXMLAnioEmit(e){loadXMLAnioEmit([...e.target.files].filter(f=>f.name.toLowerCase().endsWith('.xml')));}
+function handleXMLAnioRecib(e){loadXMLAnioRecib([...e.target.files].filter(f=>f.name.toLowerCase().endsWith('.xml')));}
 
 function loadXMLAnioEmit(files){
   let p=files.length; if(!p)return;
