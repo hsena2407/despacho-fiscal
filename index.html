@@ -1368,15 +1368,31 @@ function handleXMLRecib(e){loadXMLRecib([...e.target.files].filter(f=>f.name.toL
 
 // Detecta si un XML pertenece a la zona correcta
 function detectarTipoXML(text){
-  // Si el RFC del emisor es el cliente → es emitido (ingreso o complemento emitido)
-  // Si el RFC del receptor es el cliente → es recibido (gasto o complemento recibido)
   if(!cliActivo) return 'desconocido';
   const rfcCli = cliActivo.rfc;
-  // Para complementos de pago el RFC puede estar en diferente posición
-  const rfcEmMatch = text.match(/Emisor[^>]*Rfc="([^"]+)"/);
-  const rfcReMatch = text.match(/Receptor[^>]*Rfc="([^"]+)"/);
-  const rfcE = rfcEmMatch?rfcEmMatch[1]:'';
-  const rfcR = rfcReMatch?rfcReMatch[1]:'';
+  // Usar DOM parser para buscar RFC de emisor y receptor — más confiable que regex
+  try{
+    const doc = new DOMParser().parseFromString(text, 'text/xml');
+    const emisorEl = doc.querySelector('Emisor') || 
+      [...doc.querySelectorAll('*')].find(e=>e.localName==='Emisor');
+    const receptorEl = doc.querySelector('Receptor') || 
+      [...doc.querySelectorAll('*')].find(e=>e.localName==='Receptor');
+    const rfcE = emisorEl?.getAttribute('Rfc')||'';
+    const rfcR = receptorEl?.getAttribute('Rfc')||'';
+    if(rfcE===rfcCli) return 'emitido';
+    if(rfcR===rfcCli) return 'recibido';
+    // Fallback: buscar RFC en el texto directamente
+    if(text.includes(rfcCli)) return text.indexOf('Emisor')< text.indexOf(rfcCli) && text.indexOf(rfcCli)<text.indexOf('Receptor') ? 'emitido':'recibido';
+    return 'desconocido';
+  }catch(e){
+    // Fallback regex
+    const rfcE=(text.match(/Emisor[^>]*Rfc="([^"]+)"/) || text.match(/Rfc="([^"]+)"[^/]/))?.[1]||'';
+    const rfcR=text.match(/Receptor[^>]*Rfc="([^"]+)"/) ?.[1]||'';
+    if(rfcE===rfcCli) return 'emitido';
+    if(rfcR===rfcCli) return 'recibido';
+    return 'desconocido';
+  }
+  const rfcE=''; const rfcR='';
   if(rfcE === rfcCli) return 'emitido';
   if(rfcR === rfcCli) return 'recibido';
   return 'desconocido';
@@ -1663,22 +1679,13 @@ function parseXML(text,name){ // text = raw XML string
     // Check for parse error
     const parseErr=doc.querySelector('parsererror');
     if(parseErr) return{err:true,name,errMsg:'XML inválido'};
-    // Buscar Comprobante — puede venir con namespace cfdi: o sin él
-    let c=null;
-    // Intentar múltiples formas de encontrar el nodo raíz Comprobante
-    const root=doc.documentElement;
-    if(root && (root.localName==='Comprobante' || root.tagName==='cfdi:Comprobante')){
-      c=root;
-    } else {
-      c=doc.querySelector('Comprobante');
-      if(!c){
-        // Buscar por localName en todos los elementos del primer nivel
-        for(const el of doc.childNodes){
-          if(el.localName==='Comprobante'||el.nodeName?.includes('Comprobante')){c=el;break;}
-        }
-      }
-    }
-    if(!c) return{err:true,name,errMsg:'No se encontró nodo Comprobante'};
+    // Comprobante puede venir como <cfdi:Comprobante> o <Comprobante>
+    // doc.documentElement siempre es el nodo raíz = Comprobante
+    const c=doc.documentElement;
+    if(!c) return{err:true,name,errMsg:'XML vacío'};
+    // Validar que sea un CFDI válido
+    const localName=c.localName||c.tagName?.split(':').pop()||'';
+    if(localName!=='Comprobante') return{err:true,name,errMsg:'No es CFDI: '+localName};
     const tipo=c.getAttribute('TipoDeComprobante')||'I';
     const uuid=doc.querySelector('TimbreFiscalDigital')?.getAttribute('UUID')||'';
     const fecha=c.getAttribute('Fecha')||'';
@@ -1706,26 +1713,41 @@ function parseXML(text,name){ // text = raw XML string
     if(tipo==='P'){
       // Los nodos de complemento están en namespace Pagos20
       // querySelector no funciona con namespaces — usar getElementsByTagNameNS o iteración
-      const allEls = doc.querySelectorAll('*');
-      allEls.forEach(el=>{
-        const tag = el.localName || el.tagName?.split(':').pop() || '';
-        if(tag==='Pago'){
-          if(!formaPagoP) formaPagoP=el.getAttribute('FormaDePagoP')||'';
-          if(!fechaPagoP) fechaPagoP=el.getAttribute('FechaPago')||'';
-          const monto=parseFloat(el.getAttribute('Monto')||0);
-          if(monto>0) sub=monto;
-        }
-        if(tag==='TrasladoP'){
-          if(el.getAttribute('ImpuestoP')==='002')
-            ivaImporteP+=parseFloat(el.getAttribute('ImporteP')||0);
-        }
-        if(tag==='Totales'){
-          const baseIVA=parseFloat(el.getAttribute('TotalTrasladosBaseIVA16')||0);
-          const ivaTotal=parseFloat(el.getAttribute('TotalTrasladosImpuestoIVA16')||0);
-          if(baseIVA>0) sub=baseIVA;
-          if(ivaTotal>0 && ivaImporteP===0) ivaImporteP=ivaTotal;
-        }
+      // Use getElementsByTagNameNS for Pagos20 namespace nodes
+      const NS_P20 = 'http://www.sat.gob.mx/Pagos20';
+      // Try namespace-aware first
+      let pagoEls = doc.getElementsByTagNameNS(NS_P20, 'Pago');
+      if(!pagoEls || pagoEls.length===0) pagoEls = doc.getElementsByTagName('Pago');
+      if(!pagoEls || pagoEls.length===0) {
+        // fallback: iterate all
+        pagoEls = [...doc.querySelectorAll('*')].filter(e=>e.localName==='Pago');
+      }
+      [...pagoEls].forEach(el=>{
+        if(!formaPagoP) formaPagoP=el.getAttribute('FormaDePagoP')||'';
+        if(!fechaPagoP) fechaPagoP=el.getAttribute('FechaPago')||'';
+        const monto=parseFloat(el.getAttribute('Monto')||0);
+        if(monto>0) sub=monto;
       });
+      // TrasladoP
+      let trasEls = doc.getElementsByTagNameNS(NS_P20,'TrasladoP');
+      if(!trasEls||trasEls.length===0) trasEls=doc.getElementsByTagName('TrasladoP');
+      if(!trasEls||trasEls.length===0) trasEls=[...doc.querySelectorAll('*')].filter(e=>e.localName==='TrasladoP');
+      [...trasEls].forEach(t=>{
+        if(t.getAttribute('ImpuestoP')==='002')
+          ivaImporteP+=parseFloat(t.getAttribute('ImporteP')||0);
+      });
+      // Totales
+      let totEls = doc.getElementsByTagNameNS(NS_P20,'Totales');
+      if(!totEls||totEls.length===0) totEls=doc.getElementsByTagName('Totales');
+      if(!totEls||totEls.length===0) totEls=[...doc.querySelectorAll('*')].filter(e=>e.localName==='Totales');
+      [...totEls].forEach(el=>{
+        const baseIVA=parseFloat(el.getAttribute('TotalTrasladosBaseIVA16')||0);
+        const ivaTotal=parseFloat(el.getAttribute('TotalTrasladosImpuestoIVA16')||0);
+        if(baseIVA>0 && sub===0) sub=baseIVA;
+        if(ivaTotal>0 && ivaImporteP===0) ivaImporteP=ivaTotal;
+      });
+      // Log for debug
+      console.debug('CP parsed: fechaPagoP='+fechaPagoP+' formaPagoP='+formaPagoP+' sub='+sub+' ivaImporteP='+ivaImporteP);
     }
     // Detectar si es CFDI de combustible (ClaveProdServ gasolina/diesel)
     const claveProd = doc.querySelector('Concepto')?.getAttribute('ClaveProdServ')||'';
