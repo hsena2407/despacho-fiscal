@@ -1368,15 +1368,14 @@ function handleXMLRecib(e){loadXMLRecib([...e.target.files].filter(f=>f.name.toL
 
 // Detecta si un XML pertenece a la zona correcta
 function detectarTipoXML(text){
-  // Si el RFC del emisor es el cliente → es emitido (ingreso)
-  // Si el RFC del receptor es el cliente → es recibido (gasto)
+  // Si el RFC del emisor es el cliente → es emitido (ingreso o complemento emitido)
+  // Si el RFC del receptor es el cliente → es recibido (gasto o complemento recibido)
   if(!cliActivo) return 'desconocido';
   const rfcCli = cliActivo.rfc;
+  // Para complementos de pago el RFC puede estar en diferente posición
   const rfcEmMatch = text.match(/Emisor[^>]*Rfc="([^"]+)"/);
   const rfcReMatch = text.match(/Receptor[^>]*Rfc="([^"]+)"/);
-  // También buscar al revés (atributos en diferente orden)
-  const rfcEmMatch2 = text.match(/Rfc="([^"]+)"[^>]*RegimenFiscal/);
-  const rfcE = rfcEmMatch?rfcEmMatch[1]:(rfcEmMatch2?rfcEmMatch2[1]:'');
+  const rfcE = rfcEmMatch?rfcEmMatch[1]:'';
   const rfcR = rfcReMatch?rfcReMatch[1]:'';
   if(rfcE === rfcCli) return 'emitido';
   if(rfcR === rfcCli) return 'recibido';
@@ -1950,7 +1949,13 @@ function renderRes(r){
   h+=`</div>`; // close tabs-wrap
   if(r.salInfo){h+=`<div class="res-section"><div class="sec-title">Sueldos y Salarios <span class="art">Art.94-96 LISR</span></div><div class="alert a-info">ℹ ISR retenido por el patrón (Art.96). Régimen independiente del RESICO.</div><table class="calc-table"><tr><td>CFDI nómina recibidos</td><td>${r.salInfo.n}</td></tr><tr><td>Total percepciones</td><td class="pos">${fmt(r.salInfo.total)}</td></tr><tr class="tot"><td>ISR retenido por patrón</td><td>${fmt(r.salInfo.isrRet)}</td></tr></table></div>`;}
   if(r.emit.length){
-  const emitOrd=[...r.emit].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
+  // Mostrar todos: cobrados + PPD pendientes, ordenados por fecha
+  const todosParaTabla=[...(r.emit||[]),...(r.emitPPDsinCP||[])];
+  const emitOrd=todosParaTabla.sort((a,b)=>{
+    const fa=a.tipo==='P'?(a.fechaPagoP||a.fecha||''):(a.fecha||'');
+    const fb=b.tipo==='P'?(b.fechaPagoP||b.fecha||''):(b.fecha||'');
+    return fa.localeCompare(fb);
+  });
   const fD=f=>({'01':'Efectivo','02':'Cheque','03':'Transferencia','04':'T.Crédito','28':'T.Débito','05':'Monedero','06':'D.Electrónico','99':'Por definir'}[f]||f||'—');
   h+=`<div class="res-section"><div class="sec-title">CFDI emitidos — ingresos (${r.emit.length}) <span class="art">ordenados por fecha</span></div>
   <div style="overflow-x:auto"><table class="det-table"><thead><tr>
@@ -1958,31 +1963,48 @@ function renderRes(r){
     <th>Método</th><th>Forma Pago</th>
     <th class="num">Subtotal</th><th class="num">IVA</th><th class="num">IVA Ret</th><th class="num">ISR Ret</th><th class="num">Total</th>
   </tr></thead><tbody>
-  ${emitOrd.map(x=>`<tr>
-    <td style="white-space:nowrap;font-size:10px">${x.fecha?.substring(0,10)||'—'}</td>
-    <td style="font-family:var(--mono);font-size:10px;white-space:nowrap">${(x.serie||'')} ${(x.folio||'')}</td>
-    <td><div style="font-family:var(--mono);font-size:10px">${x.rfcR}</div><div style="font-size:10px;color:var(--text2)">${x.nomR.substring(0,22)}</div></td>
-    <td style="font-family:var(--mono);font-size:10px;text-align:center">${x.regimenR||'—'}</td>
-    <td style="font-size:10px;color:var(--text2);max-width:150px">${x.conceptos.substring(0,50)}</td>
-    <td style="text-align:center"><span style="font-size:9px;padding:1px 5px;border-radius:3px;font-family:var(--mono);background:${x.metodo==='PUE'?'rgba(0,102,204,.1)':'rgba(255,179,71,.1)'};color:${x.metodo==='PUE'?'var(--accent)':'var(--warn)'}">${x.metodo||'—'}</span></td>
-    <td style="font-size:10px;white-space:nowrap">${fD(x.forma)}</td>
-    <td class="num">${fmt(x.sub)}</td>
-    <td class="num">${fmt(x.ivaTras)}</td>
-    <td class="num" style="color:${x.ivaRet>0?'var(--danger)':'var(--text3)'}">${x.ivaRet>0?fmt(x.ivaRet):'—'}</td>
-    <td class="num" style="color:${x.isrRet>0?'var(--danger)':'var(--text3)'}">${x.isrRet>0?fmt(x.isrRet):'—'}</td>
-    <td class="num" style="font-weight:600">${fmt(x.total)}</td>
-  </tr>`).join('')}
+  ${emitOrd.map(x=>{
+    // Determinar si este CFDI cuenta como ingreso cobrado
+    const cobrado = x.tipo==='P'
+      ? (x.fechaPagoP && new Date(x.fechaPagoP).getMonth()+1===r.mes && new Date(x.fechaPagoP).getFullYear()===r.anio)
+      : (x.metodo==='PUE' || (x.metodo==='PPD' && (r.emitPPDsinCP||[]).indexOf(x)===-1));
+    const razonNoCobrado = x.tipo==='P' ? 'CP otro mes' : x.metodo==='PPD' ? 'PPD — pendiente cobro' : '';
+    const fechaShow = x.tipo==='P'&&x.fechaPagoP ? x.fechaPagoP.substring(0,10) : x.fecha?.substring(0,10)||'—';
+    const metBg = x.tipo==='P' ? 'rgba(0,150,100,.12)' : x.metodo==='PUE' ? 'rgba(0,102,204,.1)' : 'rgba(255,179,71,.1)';
+    const metCol = x.tipo==='P' ? '#00aa66' : x.metodo==='PUE' ? 'var(--accent)' : 'var(--warn)';
+    const metLabel = x.tipo==='P' ? 'CP' : x.metodo||'—';
+    return `<tr style="${cobrado?'':'opacity:.45'}">
+      <td style="white-space:nowrap;font-size:10px">
+        ${fechaShow}
+        ${x.tipo==='P'?'<div style="font-size:8px;color:#00aa66;font-weight:600">Complemento cobrado</div>':''}
+      </td>
+      <td style="font-family:var(--mono);font-size:10px;white-space:nowrap">${(x.serie||'')} ${(x.folio||'')}</td>
+      <td><div style="font-family:var(--mono);font-size:10px">${x.rfcR||x.rfcE||'—'}</div><div style="font-size:10px;color:var(--text2)">${(x.nomR||x.nomE||'').substring(0,22)}</div></td>
+      <td style="font-family:var(--mono);font-size:10px;text-align:center">${x.regimenR||'—'}</td>
+      <td style="font-size:10px;color:var(--text2);max-width:150px">${x.conceptos.substring(0,50)}</td>
+      <td style="text-align:center">
+        <span style="font-size:9px;padding:1px 5px;border-radius:3px;font-family:var(--mono);background:${metBg};color:${metCol}">${metLabel}</span>
+        ${cobrado?'':'<div style="font-size:8px;color:var(--warn)">'+razonNoCobrado+'</div>'}
+      </td>
+      <td style="font-size:10px;white-space:nowrap">${fD(x.tipo==='P'?x.formaPagoP:x.forma)}</td>
+      <td class="num" style="color:${cobrado?'inherit':'var(--text3)'}">${fmt(x.tipo==='P'?x.sub:x.sub)}</td>
+      <td class="num" style="color:${cobrado?'inherit':'var(--text3)'}">${fmt(x.tipo==='P'?(x.ivaImporteP||0):x.ivaTras)}</td>
+      <td class="num" style="color:${x.ivaRet>0?'var(--danger)':'var(--text3)'}">${x.ivaRet>0?fmt(x.ivaRet):'—'}</td>
+      <td class="num" style="color:${x.isrRet>0?'var(--danger)':'var(--text3)'}">${x.isrRet>0?fmt(x.isrRet):'—'}</td>
+      <td class="num" style="font-weight:600;color:${cobrado?'inherit':'var(--text3)'}">${fmt(x.tipo==='P'?(x.sub+(x.ivaImporteP||0)):x.total)}</td>
+    </tr>`;
+  }).join('')}
   </tbody><tfoot><tr style="font-weight:600;background:var(--surface2)">
-    <td colspan="7" style="font-family:var(--mono);font-size:10px;padding:6px 8px">TOTALES (${r.emit.length})</td>
-    <td class="num">${fmt(r.emit.reduce((s,x)=>s+x.sub,0))}</td>
-    <td class="num">${fmt(r.emit.reduce((s,x)=>s+x.ivaTras,0))}</td>
-    <td class="num">${fmt(r.emit.reduce((s,x)=>s+x.ivaRet,0))}</td>
-    <td class="num">${fmt(r.emit.reduce((s,x)=>s+x.isrRet,0))}</td>
-    <td class="num">${fmt(r.emit.reduce((s,x)=>s+x.total,0))}</td>
+    <td colspan="7" style="font-family:var(--mono);font-size:10px;padding:6px 8px">COBRADOS (${r.emit.length}) / TOTAL ${todosParaTabla.length}</td>
+    <td class="num">${fmt(r.emit.reduce((s,x)=>s+(x.tipo==='P'?x.sub:x.sub),0))}</td>
+    <td class="num">${fmt(r.emit.reduce((s,x)=>s+(x.tipo==='P'?(x.ivaImporteP||0):x.ivaTras),0))}</td>
+    <td class="num">${fmt(r.emit.reduce((s,x)=>s+(x.ivaRet||0),0))}</td>
+    <td class="num">${fmt(r.emit.reduce((s,x)=>s+(x.isrRet||0),0))}</td>
+    <td class="num">${fmt(r.emit.reduce((s,x)=>s+(x.tipo==='P'?x.sub+(x.ivaImporteP||0):x.total),0))}</td>
   </tr></tfoot></table></div></div>`;
 
-  // Mostrar PPD no cobrados como sección informativa
-  if(r.emitPPDsinCP && r.emitPPDsinCP.length>0){
+  // PPD no cobrados ya se muestran en la tabla principal con opacity baja
+  if(false && r.emitPPDsinCP && r.emitPPDsinCP.length>0){
     h+=`<div style="margin-top:8px;padding:10px 14px;background:rgba(255,179,71,.06);border:1px solid rgba(255,179,71,.25);border-radius:var(--r)">
       <div style="font-size:11px;font-weight:600;color:var(--warn);margin-bottom:6px">⚠ PPD pendientes de cobro — NO incluidos en ingresos del mes (${r.emitPPDsinCP.length})</div>
       <div style="font-size:11px;color:var(--text2)">Estos CFDI tienen método PPD y no tienen complemento de pago con FechaPago en ${MF[r.mes-1]}. Se incluirán en el mes en que se reciba el pago.</div>
