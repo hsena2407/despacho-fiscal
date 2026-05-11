@@ -996,23 +996,144 @@ function renderRes(r){
 
 // ── EXCEL ─────────────────────────────────────────────
 function genExcel(){
-  const{r,c}=lastRes,mesL=MF[r.mes-1],wb=XLSX.utils.book_new();
-  const hC=window._historial.filter(h=>h.rfc===c.rfc&&h.anio===r.anio&&h.rc===r.reg);
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([[c.nombre],['RFC: '+c.rfc],['Régimen: '+r.rl],['Ejercicio: '+r.anio],[],['Mes','ISR','IVA','Total'],...MF.map((m,i)=>{const h=hC.find(x=>x.mes===i+1);return[m,h?h.isr:null,h?h.iva:null,h?(h.isr+h.iva):null];}),[], ['TOTALES',hC.reduce((s,h)=>s+h.isr,0),hC.reduce((s,h)=>s+h.iva,0),hC.reduce((s,h)=>s+h.isr+h.iva,0)]]),'Menu');
-  const isrR=[[c.nombre],[r.rl+' — '+mesL+' '+r.anio],[],[' Concepto','Importe'],['Ingresos cobrados del mes',r.ingGrav]];
-  if(r.reg==='626')isrR.push(['Tasa RESICO Art.113-E',r.tasa],['ISR mensual',r.isrMens],['(−) ISR retenido Art.113-J',-(r.isrRetI||0)]);
-  else if(r.reg==='612')isrR.push(['(−) Deducciones Art.103',-(r.gastoBase||0)],['Base gravable',r.base],['ISR Art.96',r.isrCalc],['(−) ISR retenido',-(r.isrRetI||0)]);
-  else isrR.push(['(−) Deducción 35% Art.115',-(r.ded||0)],['Base gravable',r.base],['ISR Art.96',r.isrCalc],['(−) ISR retenido Art.116',-(r.isrRetI||0)]);
-  isrR.push(['ISR A PAGAR',r.isrCargo]);
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(isrR),'ISR');
-  if(c.iva!=='no'){const ivaR=[[c.nombre],['IVA '+mesL],[],['Concepto','Importe'],['IVA trasladado 16%',r.ivaTrasI],['(−) IVA retenido',-(r.ivaRetI||0)]];if(c.iva==='mixto'){const p=r.ingGrav/(r.ingGrav+r.ingEx);ivaR.push(['Proporción Art.5-V-c',p],['(−) IVA acreditable proporcional',-(r.ivaPropAcred||0)]);}else ivaR.push(['(−) IVA acreditable',-(r.ivaAcred||0)]);ivaR.push([(r.ivaF||0)>0?'SALDO A FAVOR':'IVA A PAGAR',(r.ivaF||0)>0?r.ivaF:(r.ivaP||0)]);XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ivaR),'IVA');}
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['UUID','Fecha','RFC Receptor','Nombre','Concepto','Subtotal','IVA','IVA ret','ISR ret','Total'],...r.emit.map(x=>[x.uuid,x.fecha,x.rfcR,x.nomR,x.conceptos,x.sub,x.ivaTras,x.ivaRet,x.isrRet,x.total])]),'CFDI Ingresos');
+  const{r,c}=lastRes;
+  const mesL=MF[r.mes-1], anio=r.anio, wb=XLSX.utils.book_new();
+  const hC=window._historial.filter(h=>h.rfc===c.rfc&&h.anio===anio&&h.rc===r.reg);
   const gDed=r.gastosDeducibles||r.recib;
   const gNoDed=r.gastosNoDed||[];
-  const hdG=['UUID','Fecha','RFC Emisor','Nombre','Concepto','Reg.Receptor','Método','Uso','Subtotal','IVA','Total','Deducible'];
-  const rwG=[...gDed.map(x=>[x.uuid,x.fecha,x.rfcE,x.nomE,x.conceptos,x.regimenR,x.metodo,x.usoCFDI,x.sub,x.ivaTras,x.total,'SÍ']),...gNoDed.map(x=>[x.uuid,x.fecha,x.rfcE,x.nomE,x.conceptos,x.regimenR,x.metodo,x.usoCFDI,x.sub,x.ivaTras,x.total,'NO'])];
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([hdG,...rwG]),'CFDI Gastos');
-  XLSX.writeFile(wb,`PT_${c.rfc}_${r.rl.replace(/\s/g,'_')}_${mesL}_${r.anio}.xlsx`);
+
+  // ── Helper para AOA con estilos básicos ──────────
+  function mkSheet(data){ return XLSX.utils.aoa_to_sheet(data); }
+
+  // ── HOJA menu ────────────────────────────────────
+  const menuData=[
+    [c.nombre],
+    ['MENU DE CONTRIBUCIONES POR MES DEL EJERCICIO'],
+    ['AÑO', anio],
+    [],
+    ['CONCENTRADO MENSUAL','TOTAL PAGADO'],
+    ...MF.map((m,i)=>{const h=hC.find(x=>x.mes===i+1);return[m,h?h.isr+h.iva:null];}),
+    [],
+    ['TOTALES',hC.reduce((s,h)=>s+h.isr+h.iva,0)],
+    [],
+    ['REGIMEN SIMPLIFICADO DE CONFIANZA — '+c.nombre,'','','','','','','','','','',''],
+    ['CONTRIBUCION','ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'],
+    ['ISR Simplificado de confianza',...MF.map((_,i)=>{const h=hC.find(x=>x.mes===i+1);return h?h.isr:null;})],
+    ['IVA',...MF.map((_,i)=>{const h=hC.find(x=>x.mes===i+1);return h?h.iva:null;})],
+    ['Totales',...MF.map((_,i)=>{const h=hC.find(x=>x.mes===i+1);return h?h.isr+h.iva:null;})],
+  ];
+  XLSX.utils.book_append_sheet(wb,mkSheet(menuData),'menu');
+
+  // ── HOJA PPISR ───────────────────────────────────
+  const isrHeader=['Procedimiento de calculo','ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC','TOTAL'];
+  const getMesVal=(field,mes)=>{
+    if(mes===r.mes) return r[field]||0;
+    const h=hC.find(x=>x.mes===mes);
+    return h?h[field]||null:null;
+  };
+  // Para el mes procesado tenemos todos los datos; para otros meses solo isr/iva del historial
+  const isrData=[
+    [c.nombre],
+    ['ISR del Régimen Simplificado de Confianza de Personas Físicas'],
+    [anio],
+    isrHeader,
+    ['INGRESOS'],
+    ['Ingresos cobrados del mes (precargados)',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?r.ingGrav:(hC.find(x=>x.mes===mes)?.ingGrav||null);})],
+    ['(+) Ingresos adicionales del mes',...Array(12).fill(null)],
+    ['(=) Total ingresos del mes',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?r.ingGrav:(hC.find(x=>x.mes===mes)?.ingGrav||null);})],
+    ['DETERMINACIÓN'],
+    ['(=) Ingresos cobrados y amparados',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?r.ingGrav:(hC.find(x=>x.mes===mes)?.ingGrav||null);})],
+    ['(-) Ingresos exentos',...MF.map((_,i)=>i+1===r.mes?(r.ingEx||0):null)],
+    ['(=) Base gravable',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?r.ingGrav:(hC.find(x=>x.mes===mes)?.ingGrav||null);})],
+    ['Tasa aplicable',...MF.map((_,i)=>i+1===r.mes?r.tasa:null)],
+    ['Impuesto mensual',...MF.map((_,i)=>i+1===r.mes?r.isrMens:null)],
+    ['(-) ISR retenido',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?r.isrRetI:(hC.find(x=>x.mes===mes)?.isrRet||null);})],
+    ['(=) Impuesto a cargo',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?r.isrCargo:(hC.find(x=>x.mes===mes)?.isr||null);})],
+    ['PAGO'],
+    ['A cargo',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?r.isrCargo:(hC.find(x=>x.mes===mes)?.isr||null);})],
+    ['Total de contribuciones',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?r.isrCargo:(hC.find(x=>x.mes===mes)?.isr||null);})],
+    ['Cantidad a cargo',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?r.isrCargo:(hC.find(x=>x.mes===mes)?.isr||null);})],
+    ['Cantidad a pagar',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?r.isrCargo:(hC.find(x=>x.mes===mes)?.isr||null);})],
+    [],
+    ['Tabla de tasas Art.113-E LISR'],
+    ['','Monto ingresos anuales','Tasa Mensual'],
+    ['',25000,0.010],['',50000,0.011],['',83333.33,0.015],['',208333.33,0.020],['',3500000,0.025],
+  ];
+  XLSX.utils.book_append_sheet(wb,mkSheet(isrData),'PPISR');
+
+  // ── HOJA PM IVA ──────────────────────────────────
+  const ivaData=[
+    [c.nombre,'','','','','','','','','','','','',anio],
+    ['Calculo del pago definitivo de IVA'],
+    ['Concepto','ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'],
+    ['DETERMINACIÓN'],
+    ['Actividades gravadas a la tasa del 16%',...MF.map((_,i)=>i+1===r.mes?(r.ingGravIVA||r.ingGrav):null)],
+    ['Actividades exentas',...MF.map((_,i)=>i+1===r.mes?r.ingEx:null)],
+    ['IVA a cargo a la tasa del 16%',...MF.map((_,i)=>i+1===r.mes?r.ivaTrasI:null)],
+    ['(-) IVA retenido',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?r.ivaRetI:(hC.find(x=>x.mes===mes)?.ivaRet||null);})],
+    ['(-) IVA acreditable del periodo (precarga SAT — sin combustibles)',...MF.map((_,i)=>i+1===r.mes?(r.ivaAcredSAT||r.ivaAcred):null)],
+    ['IVA pagado en gastos y adquisiciones'],
+    ['IVA acreditable por actividades gravadas',...MF.map((_,i)=>i+1===r.mes?(r.ivaAcredSAT||r.ivaAcred):null)],
+    ['(=) IVA acreditable del período',...MF.map((_,i)=>i+1===r.mes?(r.ivaAcredSAT||r.ivaAcred):null)],
+    ['Cantidad a cargo (precarga SAT)',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?Math.max(0,(r.ivaTrasI||0)-(r.ivaRetI||0)-(r.ivaAcredSAT||r.ivaAcred||0)):(hC.find(x=>x.mes===mes)?.iva||null);})],
+    ['(-)Acreditamiento saldo a favor periodos anteriores',...Array(12).fill(null)],
+    ['Cantidad a pagar',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?Math.max(0,(r.ivaTrasI||0)-(r.ivaRetI||0)-(r.ivaAcredSAT||r.ivaAcred||0)):(hC.find(x=>x.mes===mes)?.iva||null);})],
+    [],
+    ...(r.ivaAcredComb>0?[
+      ['⛽ IVA combustibles (captura manual en SAT — Art.5 LIVA)',...MF.map((_,i)=>i+1===r.mes?r.ivaAcredComb:null)],
+      ['IVA a pagar TOTAL (con combustibles)',...MF.map((_,i)=>i+1===r.mes?Math.max(0,(r.ivaTrasI||0)-(r.ivaRetI||0)-(r.ivaAcred||0)):null)],
+    ]:[]),
+  ];
+  XLSX.utils.book_append_sheet(wb,mkSheet(ivaData),'PM IVA');
+
+  // ── HOJA Ingresos ────────────────────────────────
+  const ingH=['FECHA','FOLIO FISCAL','RFC','CLIENTE','CONCEPTO','IMPORTE','IVA','IVA EXENTO','IVA RET','ISR RET','TOTAL','Metodo','Forma Pago','Efecto'];
+  const ingRows=r.emit.map(x=>[x.fecha?.substring(0,10),x.uuid,x.rfcR,x.nomR,x.conceptos,x.sub,x.ivaTras,x.ivaEx||0,x.ivaRet,x.isrRet,x.total,x.metodo,'','I - Ingreso']);
+  const ingTotales=['TOTALES','','','','',
+    r.emit.reduce((s,x)=>s+x.sub,0),
+    r.emit.reduce((s,x)=>s+x.ivaTras,0),
+    r.emit.reduce((s,x)=>s+(x.ivaEx||0),0),
+    r.emit.reduce((s,x)=>s+x.ivaRet,0),
+    r.emit.reduce((s,x)=>s+x.isrRet,0),
+    r.emit.reduce((s,x)=>s+x.total,0),
+  ];
+  const ingData=[[c.nombre],[`FACTURACIÓN ${anio}`],[],[mesL.toUpperCase()],ingH,...ingRows,[],ingTotales];
+  XLSX.utils.book_append_sheet(wb,mkSheet(ingData),'Ingresos');
+
+  // ── HOJA Gastos ──────────────────────────────────
+  const gH=['FECHA','FOLIO FISCAL','RFC EMISOR','PROVEEDOR','CONCEPTO','IMPORTE','DESCUENTO','IVA','TOTAL','Metodo','Forma Pago','Uso CFDI','Reg.Receptor','Deducible SAT','IVA acreditable'];
+  const gRows=[
+    ...gDed.map(x=>[x.fecha?.substring(0,10),x.uuid,x.rfcE,x.nomE,x.conceptos,x.tipo==='P'?0:x.sub,0,x.tipo==='P'?x.ivaImporteP:x.ivaTras,x.tipo==='P'?0:x.total,x.metodo||'P',x.forma||x.formaPagoP,x.usoCFDI,x.regimenR,'SÍ',x.tipo==='P'?x.ivaImporteP:x.ivaTras]),
+    ...gNoDed.map(x=>[x.fecha?.substring(0,10),x.uuid,x.rfcE,x.nomE,x.conceptos,x.sub,0,x.ivaTras,x.total,x.metodo,x.forma,x.usoCFDI,x.regimenR,'NO',0]),
+  ];
+  const gTotDed=gDed.reduce((s,x)=>s+(x.tipo==='P'?x.ivaImporteP:x.ivaTras),0);
+  const gSub=gDed.reduce((s,x)=>s+(x.tipo==='P'?0:x.sub),0);
+  const gTotales=['DEDUCIBLES ('+gDed.length+')','','','','',gSub,gDed.reduce((s,x)=>s+(x.descuento||0),0),gTotDed,'','','','','','',''];
+  const gTotNoD=['NO DEDUCIBLES ('+gNoDed.length+')','','','','',gNoDed.reduce((s,x)=>s+x.sub,0),0,gNoDed.reduce((s,x)=>s+x.ivaTras,0),'','','','','','',''];
+  const gData=[[c.nombre],[`GASTOS ${anio}`],[],[mesL.toUpperCase()],gH,...gRows,[],gTotales,gTotNoD];
+  XLSX.utils.book_append_sheet(wb,mkSheet(gData),'Gastos');
+
+  // ── HOJA Cfdi I ──────────────────────────────────
+  const ciH=['UUID','Fecha emision','RFC receptor','Razon receptor','Regimen receptor','Uso CFDI','Tipo','Estado','Metodo pago','Forma pago','SubTotal','Descuento','IVA 16%','IVA Exento','IVA Retenido','ISR Retenido','Total'];
+  const ciRows=r.emit.map(x=>[x.uuid,x.fecha,x.rfcR,x.nomR,x.regimenR||'',x.usoCFDI||'',x.tipo,'VIGENTE',x.metodo,'',x.sub,0,x.ivaTras,x.ivaEx||0,x.ivaRet,x.isrRet,x.total]);
+  XLSX.utils.book_append_sheet(wb,mkSheet([[`Cfdi I — ${anio}`],[mesL],ciH,...ciRows]),'Cfdi I');
+
+  // ── HOJA Cfdi E ──────────────────────────────────
+  const ceH=['UUID','Fecha emision','RFC emisor','Razon emisor','Regimen emisor','RFC receptor','Regimen receptor','Uso CFDI','Tipo','Estado','Metodo pago','Forma pago','SubTotal','Descuento','IVA 16%','IVA Exento','IVA Retenido','ISR Retenido','IEPS','Total','Deducible SAT'];
+  const ceRows=r.recib.map(x=>{
+    const ded=(r.gastosDeducibles||[]).includes(x);
+    return[x.uuid,x.fecha,x.rfcE,x.nomE,'',x.rfcR,x.regimenR,x.usoCFDI,x.tipo,'VIGENTE',x.metodo||'P',x.forma||x.formaPagoP,x.sub,0,x.ivaTras,x.ivaEx||0,x.ivaRet||0,x.isrRet||0,0,x.total,ded?'SÍ':'NO'];
+  });
+  XLSX.utils.book_append_sheet(wb,mkSheet([[`Cfdi E — ${anio}`],[mesL],ceH,...ceRows]),'Cfdi E');
+
+  // ── Otras Ret, Subsidio, Saldo a Favor, Perdidas, INPC (plantillas) ──
+  XLSX.utils.book_append_sheet(wb,mkSheet([[c.nombre,'',anio],['OTRAS RETENCIONES DE ISR'],['Concepto','ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC','Total'],['RETENCIONES POR SALARIOS',...Array(13).fill(0)],['RETENCIONES POR ASIMILADOS',...Array(13).fill(0)],['TOTAL RETENCIONES ISR',...Array(13).fill(0)],['OTRAS RETENCIONES DE IVA'],['TOTAL RETENCIONES IVA',...Array(13).fill(0)]]),'Otras Ret ISR IVA');
+  XLSX.utils.book_append_sheet(wb,mkSheet([[c.nombre],['SUBSIDIO PARA EL EMPLEO'],['Concepto','ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'],['Pendiente al inicio del mes',...Array(12).fill(0)],['Pagado a trabajadores en el mes',...Array(12).fill(0)],['Total por aplicar en el mes',...Array(12).fill(0)]]),'Subsidio');
+  XLSX.utils.book_append_sheet(wb,mkSheet([['RELACION SALDOS A FAVOR DE IVA'],['MES','MONTO ORIGINAL','NUM OPERACION','FECHA PRESENTACION','ACREDITADO','MES ACREDITADO','NUM OPERACION','FECHA ACREDITAMIENTO','ACTUALIZACION','SALDO ANTES DE APLICAR','REMANENTE ACTUALIZADO','ACREDITADO CONTRA']]),'Saldo a Favor Iva');
+  XLSX.utils.book_append_sheet(wb,mkSheet([['APLICACION DE PERDIDAS'],['AÑO','ACTUALIZACION','MONTO PERDIDA','1er MES 2a MITAD','ULTIMO MES','FACTOR ACTUAL.','PERDIDA ACTUAL.','AMORTIZACION','REMANENTE','TIPO DECLARACION','FECHA PRESENTACION','NUM OPERACION']]),'Perdidas');
+  XLSX.utils.book_append_sheet(wb,mkSheet([['FECHA','INPC base 2010'],['2024-01-01',133.097],['2024-02-01',133.934],['2024-03-01',135.099],['2024-04-01',135.977],['2024-05-01',136.654],['2024-06-01',137.063],['2024-07-01',137.589],['2024-08-01',138.074],['2024-09-01',138.397],['2024-10-01',139.191],['2024-11-01',139.669],['2024-12-01',140.140],['2025-01-01',141.152],['2025-02-01',141.813],['2025-03-01',142.519],['2025-04-01',143.204],['2025-05-01',143.818],['2025-06-01',144.243],['2025-07-01',144.705],['2025-08-01',145.126],['2025-09-01',145.418],['2025-10-01',146.077],['2025-11-01',146.512],['2025-12-01',147.002],['2026-01-01',147.958],['2026-02-01',148.621],['2026-03-01',149.317],['2026-04-01',150.009]]),'INPC');
+
+  XLSX.writeFile(wb,`PT_${c.rfc}_${r.rl.replace(/\s/g,'_')}_${mesL}_${anio}.xlsx`);
 }
 
 // ── HISTORIAL ─────────────────────────────────────────
