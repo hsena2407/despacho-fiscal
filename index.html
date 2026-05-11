@@ -76,9 +76,29 @@ window.dbLoad = async () => {
   window.renderHist();
   document.getElementById('loading').style.display = 'none';
   document.getElementById('app').style.display = 'grid';
+  // Inicializar dashboard si admin
+  if(sesionActiva?.rol==='admin') setTimeout(renderDashboard, 100);
 };
 
-window.addEventListener('load', () => { window.dbLoad(); });
+// Session persistence usando localStorage para estado de UI (no datos sensibles)
+window.addEventListener('load', () => {
+  // No cargar Firebase hasta que el usuario haga login
+  // dbLoad se llama desde doLogin()
+  document.getElementById('loading').style.display='none';
+  // Restaurar último panel activo
+  const lastPanel = localStorage.getItem('fd_panel');
+  if(lastPanel) {
+    setTimeout(()=>{
+      const navItems = document.querySelectorAll('.nav-item');
+      const panels = ['clientes','proceso','historial','legal'];
+      const idx = panels.indexOf(lastPanel);
+      if(idx >= 0) goPanel(lastPanel, navItems[idx]);
+    }, 800);
+  }
+  // Mostrar usuario (por ahora solo hostname/despacho)
+  const user = localStorage.getItem('fd_user') || 'Administrador';
+  document.getElementById('sb-user').textContent = user;
+});
 </script>
 <style>
 :root{--bg:#f7f8fa;--surface:#ffffff;--surface2:#f0f2f5;--border:#e2e6ee;--border2:#c8d0df;--accent:#0066cc;--accent2:#0099ff;--danger:#d63031;--warn:#e67e22;--text:#1a2035;--text2:#5a6880;--text3:#9aa5b8;--mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;--r:8px;--rl:14px}
@@ -203,6 +223,17 @@ input[type="checkbox"]{width:auto;cursor:pointer}
 .badge-blue{background:rgba(0,102,204,.1);color:var(--accent)}
 .badge-green{background:rgba(0,102,204,.08);color:var(--accent)}
 .toast{position:fixed;bottom:24px;right:24px;background:#fff;border:1px solid var(--border2);border-radius:var(--r);padding:12px 18px;font-size:13px;color:var(--text);display:none;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.15)}
+.login-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:300;flex-direction:column;gap:16px}
+.login-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--rl);padding:32px 36px;width:360px;box-shadow:0 24px 60px rgba(0,0,0,.15)}
+.login-card h2{font-size:18px;font-weight:600;margin-bottom:4px}
+.login-card p{font-size:12px;color:var(--text2);margin-bottom:20px}
+.login-err{color:var(--danger);font-size:12px;margin-top:8px;display:none}
+.admin-badge{display:inline-block;background:rgba(0,102,204,.12);color:var(--accent);font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;font-family:var(--mono)}
+.aux-badge{display:inline-block;background:rgba(255,179,71,.12);color:var(--warn);font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;font-family:var(--mono)}
+.dash-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:16px}
+.dash-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:5px}
+.dash-card .dc-val{font-family:var(--mono);font-size:22px;font-weight:600}
+.dash-card .dc-lbl{font-size:11px;color:var(--text2)}
 .toast.ok{border-left:3px solid var(--accent)}.toast.err{border-left:3px solid var(--danger)}
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-thumb{background:#c8d0df;border-radius:3px}
@@ -239,6 +270,29 @@ body{background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt}
 </head>
 <body>
 
+<!-- LOGIN SCREEN -->
+<div id="login-screen" class="login-screen">
+  <div style="text-align:center;margin-bottom:8px">
+    <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--accent);letter-spacing:.1em">FISCODESK MX</div>
+    <div style="font-size:12px;color:var(--text2)">Papeles de trabajo 2026</div>
+  </div>
+  <div class="login-card">
+    <h2>Iniciar sesión</h2>
+    <p>Accede con tu usuario y contraseña</p>
+    <div class="fg" style="margin-bottom:10px">
+      <label>Usuario</label>
+      <input id="login-user" placeholder="usuario@despacho.com" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="fg" style="margin-bottom:14px">
+      <label>Contraseña</label>
+      <input id="login-pass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn btn-primary" onclick="doLogin()" style="width:100%;justify-content:center">Entrar</button>
+    <div id="login-err" class="login-err">Usuario o contraseña incorrectos</div>
+  </div>
+  <div style="font-size:11px;color:var(--text3)">FiscoDesk MX © 2026</div>
+</div>
+
 <div id="loading">
   <div class="spinner"></div>
   <p>Conectando con la base de datos...</p>
@@ -252,6 +306,10 @@ body{background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt}
   </div>
   <nav class="nav">
     <div class="nav-sec">Principal</div>
+    <div class="nav-item" id="nav-dashboard" style="display:none" onclick="goPanel('dashboard',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </div>
     <div class="nav-item active" onclick="goPanel('clientes',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Clientes<span class="nb" id="nb-cli">0</span>
@@ -264,17 +322,43 @@ body{background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       Historial<span class="nb" id="nb-hist">0</span>
     </div>
+    <div class="nav-item" id="nav-usuarios" style="display:none" onclick="goPanel('usuarios',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Usuarios
+    </div>
     <div class="nav-sec">Referencia</div>
     <div class="nav-item" onclick="goPanel('legal',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       Fundamentos legales
     </div>
   </nav>
+  <div style="padding:12px 18px;border-top:1px solid #0d1526">
+    <div id="sb-user" style="font-size:11px;color:#64748b;margin-bottom:8px;font-family:var(--mono)"></div>
+    <button class="btn btn-sm" onclick="cerrarSesion()" style="width:100%;background:rgba(255,255,255,.06);color:#94a3b8;border-color:#2d3748;font-size:11px">
+      ⎋ Cerrar sesión
+    </button>
+  </div>
 </aside>
 
 <main class="main">
 
 <!-- CLIENTES -->
+<!-- DASHBOARD -->
+<div id="panel-dashboard" class="panel">
+  <div class="ph">
+    <div><div class="ph-title">Dashboard</div><div class="ph-sub">Estado de declaraciones — <span id="dash-mes-label"></span></div></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select id="dash-anio" style="width:90px" onchange="renderDashboard()"><option>2026</option><option>2025</option></select>
+      <select id="dash-mes" style="width:130px" onchange="renderDashboard()"></select>
+    </div>
+  </div>
+  <div class="content">
+    <div id="dash-stats" class="dash-grid"></div>
+    <div class="sec-title">Estado por cliente</div>
+    <div id="dash-table"></div>
+  </div>
+</div>
+
 <div id="panel-clientes" class="panel active">
   <div class="ph">
     <div><div class="ph-title">Clientes</div><div class="ph-sub">Catálogo de contribuyentes</div></div>
@@ -363,6 +447,47 @@ body{background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt}
 </div>
 
 <!-- LEGAL -->
+<!-- USUARIOS -->
+<div id="panel-usuarios" class="panel">
+  <div class="ph">
+    <div><div class="ph-title">Usuarios</div><div class="ph-sub">Administrar acceso al sistema</div></div>
+    <button class="btn btn-primary" onclick="openNuevoUsuario()">＋ Nuevo usuario</button>
+  </div>
+  <div class="content">
+    <div class="alert a-info" style="margin-bottom:14px">Solo el administrador puede crear usuarios y asignar clientes a auxiliares.</div>
+    <div id="usuarios-list"></div>
+  </div>
+</div>
+
+<!-- USUARIOS MODAL -->
+<div class="overlay" id="m-usuario">
+  <div class="modal" style="width:480px">
+    <div class="mh"><h2>Nuevo usuario</h2><button class="mclose" onclick="closeM('m-usuario')">×</button></div>
+    <div class="mc">
+      <div class="form-grid">
+        <div class="fg"><label>Usuario (email o nombre)</label><input id="u-user" placeholder="auxiliar@despacho.com"></div>
+        <div class="fg"><label>Contraseña</label><input id="u-pass" type="password" placeholder="••••••••"></div>
+        <div class="fg"><label>Nombre completo</label><input id="u-nombre" placeholder="Nombre del auxiliar"></div>
+        <div class="fg">
+          <label>Rol</label>
+          <select id="u-rol" onchange="updRolUI()">
+            <option value="admin">Administrador — acceso total</option>
+            <option value="auxiliar">Auxiliar — clientes asignados</option>
+          </select>
+        </div>
+        <div class="fg full" id="fg-clientes-perm" style="display:none">
+          <label>Clientes permitidos (selecciona)</label>
+          <div id="clientes-check-list" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r);padding:8px;display:flex;flex-direction:column;gap:5px"></div>
+        </div>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn" onclick="closeM('m-usuario')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarUsuario()">Guardar usuario</button>
+    </div>
+  </div>
+</div>
+
 <div id="panel-legal" class="panel">
   <div class="ph"><div><div class="ph-title">Fundamentos legales</div><div class="ph-sub">LISR 2026 · LIVA 2026 · RMF 2026</div></div></div>
   <div class="content" style="max-width:680px"><div id="legal-body"></div></div>
@@ -449,6 +574,137 @@ window._clientes = [];
 window._historial = [];
 let cliActivo=null,mesActivo=null,regActivo=null,detIdx=null,lastRes=null;
 
+// ── AUTENTICACIÓN ─────────────────────────────────────────────────────
+let sesionActiva = null; // {user, rol, clientesPermitidos}
+
+// Usuarios (guardados en Firestore colección 'usuarios')
+// Por ahora hardcoded el admin; luego se cargan de Firebase
+const USUARIOS_DEFAULT = [
+  {user:'admin', pass:'admin2026', rol:'admin', nombre:'Administrador'},
+];
+
+async function doLogin(){
+  const user = document.getElementById('login-user').value.trim().toLowerCase();
+  const pass = document.getElementById('login-pass').value;
+  const err = document.getElementById('login-err');
+  err.style.display='none';
+
+  // Buscar en Firestore primero
+  let found = null;
+  try{
+    const snap = await window._db ? 
+      (await import("https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js")).then(async({getDoc,doc})=>{
+        return await getDoc(doc(window._db,'usuarios',user));
+      }) : null;
+    if(snap && snap.exists && snap.exists()) found = snap.data();
+  }catch(e){}
+
+  // Fallback a usuarios default
+  if(!found) found = USUARIOS_DEFAULT.find(u=>u.user===user);
+
+  if(!found || found.pass !== pass){
+    err.style.display='block';
+    document.getElementById('login-pass').value='';
+    return;
+  }
+
+  sesionActiva = found;
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('sb-user').textContent = (found.nombre||found.user) + (found.rol==='admin'?' (Admin)':' (Aux)');
+  
+  // Mostrar dashboard solo para admin
+  if(found.rol==='admin'){
+    document.getElementById('nav-dashboard').style.display='flex';
+    document.getElementById('nav-usuarios').style.display='flex';
+  }
+  
+  try{ localStorage.setItem('fd_user', found.nombre||found.user); }catch(e){}
+  
+  // Cargar datos
+  await window.dbLoad();
+  
+  // Filtrar clientes si es auxiliar
+  if(found.rol==='auxiliar' && found.clientesPermitidos && found.clientesPermitidos.length>0){
+    window._clientes = window._clientes.filter(c=>found.clientesPermitidos.includes(c.rfc));
+    window.renderCli();
+  }
+  
+  toast('Bienvenido, '+(found.nombre||found.user));
+}
+
+function renderDashboard(){
+  const anio = parseInt(document.getElementById('dash-anio').value);
+  const mesEl = document.getElementById('dash-mes');
+  if(!mesEl.children.length){
+    MF.forEach((m,i)=>{
+      const opt=document.createElement('option');
+      opt.value=i+1; opt.textContent=m;
+      if(i+1===new Date().getMonth()+1) opt.selected=true;
+      mesEl.appendChild(opt);
+    });
+  }
+  const mes = parseInt(mesEl.value||1);
+  document.getElementById('dash-mes-label').textContent = MF[mes-1]+' '+anio;
+
+  const totalCli = window._clientes.length;
+  const calcMes = window._historial.filter(h=>h.mes===mes&&h.anio===anio).length;
+  const pendientes = totalCli - calcMes;
+  const totalISR = window._historial.filter(h=>h.mes===mes&&h.anio===anio).reduce((s,h)=>s+h.isr,0);
+  const totalIVA = window._historial.filter(h=>h.mes===mes&&h.anio===anio).reduce((s,h)=>s+h.iva,0);
+
+  document.getElementById('dash-stats').innerHTML = `
+    <div class="dash-card"><div class="dc-val" style="color:var(--accent)">${totalCli}</div><div class="dc-lbl">Clientes totales</div></div>
+    <div class="dash-card"><div class="dc-val" style="color:#22c55e">${calcMes}</div><div class="dc-lbl">Calculados ${MF[mes-1]}</div></div>
+    <div class="dash-card"><div class="dc-val" style="color:var(--danger)">${pendientes}</div><div class="dc-lbl">Pendientes</div></div>
+    <div class="dash-card"><div class="dc-val">${fmt(totalISR)}</div><div class="dc-lbl">ISR total ${MF[mes-1]}</div></div>
+    <div class="dash-card"><div class="dc-val">${fmt(totalIVA)}</div><div class="dc-lbl">IVA total ${MF[mes-1]}</div></div>
+    <div class="dash-card"><div class="dc-val">${fmt(totalISR+totalIVA)}</div><div class="dc-lbl">Total contribuciones</div></div>
+  `;
+
+  const rows = window._clientes.map(c=>{
+    const calc = window._historial.find(h=>h.rfc===c.rfc&&h.mes===mes&&h.anio===anio);
+    const estado = calc ? '✅ Calculado' : '⏳ Pendiente';
+    const estadoColor = calc ? 'var(--accent)' : 'var(--warn)';
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid var(--border);border-radius:var(--r);margin-bottom:6px;background:var(--surface)">
+      <div style="flex:1">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--accent)">${c.rfc}</div>
+        <div style="font-size:13px;font-weight:500">${c.nombre}</div>
+        <div style="font-size:11px;color:var(--text3)">${c.act||''}</div>
+      </div>
+      <div style="text-align:center;min-width:90px;font-size:12px;color:${estadoColor};font-weight:500">${estado}</div>
+      ${calc?`<div style="text-align:right;min-width:120px">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--danger)">ISR ${fmt(calc.isr)}</div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">IVA ${fmt(calc.iva)}</div>
+      </div>`:'<div style="min-width:120px"></div>'}
+      <button class="btn btn-sm" onclick="irProcesarDesde('${c.rfc}',${mes},${anio})" style="font-size:11px">${calc?'Ver':'Calcular'} →</button>
+    </div>`;
+  }).join('');
+
+  document.getElementById('dash-table').innerHTML = rows || '<div class="empty"><div class="ico">📋</div><h3>Sin clientes</h3></div>';
+}
+
+function irProcesarDesde(rfc, mes, anio){
+  document.getElementById('sel-cli').value = rfc;
+  onCliChange();
+  document.getElementById('sel-anio').value = anio;
+  selMes(mes);
+  goPanel('proceso', document.querySelectorAll('.nav-item')[2]);
+}
+
+// Mostrar login al cargar
+window.addEventListener('DOMContentLoaded', ()=>{
+  // Verificar si hay sesión guardada en localStorage
+  const savedUser = localStorage.getItem('fd_session');
+  if(savedUser){
+    try{
+      const s = JSON.parse(savedUser);
+      if(s && s.user){
+        document.getElementById('login-user').value = s.user;
+      }
+    }catch(e){}
+  }
+});
+
 function toast(msg, tipo='ok'){
   const t=document.getElementById('toast');
   t.textContent=msg;t.className='toast '+tipo;t.style.display='block';
@@ -464,6 +720,23 @@ function goPanel(id,el){
   if(id==='proceso')fillSel();
   if(id==='historial')renderHist();
   if(id==='legal')renderLegal();
+  if(id==='dashboard')renderDashboard();
+  if(id==='usuarios')loadUsuarios();
+  // Guardar panel activo en localStorage
+  try{ localStorage.setItem('fd_panel', id); }catch(e){}
+}
+
+function cerrarSesion(){
+  if(!confirm('¿Cerrar sesión? Los datos están guardados en la nube.')) return;
+  try{ localStorage.removeItem('fd_panel'); }catch(e){}
+  // Limpiar estado local
+  window._clientes=[]; window._historial=[];
+  cliActivo=null; mesActivo=null; regActivo=null; lastRes=null;
+  limpiarXML();
+  document.getElementById('resultados').style.display='none';
+  document.getElementById('proc-info').style.display='none';
+  // Recargar la página
+  window.location.reload();
 }
 
 // ── CLIENTES ──────────────────────────────────────────
@@ -625,7 +898,38 @@ function renderMesGrid(){
   const anio=parseInt(document.getElementById('sel-anio').value);
   const reg=regActivo||(regs(cliActivo)[0]?.code);
   const ok=window._historial.filter(h=>h.rfc===cliActivo.rfc&&h.anio===anio&&h.rc===reg).map(h=>h.mes);
-  document.getElementById('mes-grid').innerHTML=MS.map((m,i)=>{const n=i+1,isOk=ok.includes(n);return`<div class="mes-btn ${isOk?'ok':''} ${mesActivo===n?'active':''}" onclick="selMes(${n})">${m}</div>`;}).join('');
+  document.getElementById('mes-grid').innerHTML=MS.map((m,i)=>{
+    const n=i+1,isOk=ok.includes(n);
+    return`<div class="mes-btn ${isOk?'ok':''} ${mesActivo===n?'active':''}" onclick="selMes(${n})" title="${isOk?'Ya calculado — haz clic y carga XML para recalcular':m}">
+      ${m}${isOk?'<span style="display:block;font-size:8px;color:var(--accent)">✓</span>':''}
+    </div>`;
+  }).join('');
+
+  // Si el mes activo ya tiene resultado guardado mostrar botón de restaurar
+  if(mesActivo && ok.includes(mesActivo)){
+    const bCarga = document.getElementById('btn-cargar-mes');
+    if(!bCarga){
+      const div = document.createElement('div');
+      div.id = 'btn-cargar-mes';
+      div.style.cssText = 'margin-top:8px;';
+      div.innerHTML = `<div class="alert a-ok" style="display:flex;align-items:center;gap:10px;padding:8px 12px">
+        <span style="font-size:12px">✓ Este mes ya fue calculado</span>
+        <button class="btn btn-sm btn-primary" onclick="cargarXMLsYRecalcular()" style="margin-left:auto">↺ Cargar XML y recalcular</button>
+      </div>`;
+      document.getElementById('mes-grid').after(div);
+    }
+  } else {
+    const bCarga = document.getElementById('btn-cargar-mes');
+    if(bCarga) bCarga.remove();
+  }
+}
+
+async function cargarXMLsYRecalcular(){
+  toast('Cargando XML desde la nube...');
+  await cargarXMLsGuardados();
+  if(xmlEmitidos.length > 0 || xmlRecibidos.length > 0){
+    await procesar();
+  }
 }
 function selMes(n){mesActivo=n;renderMesGrid();}
 
@@ -639,17 +943,44 @@ function dDropR(e){e.preventDefault();document.getElementById('xml-drop-r').clas
 function handleXMLEmit(e){loadXMLEmit([...e.target.files]);}
 function handleXMLRecib(e){loadXMLRecib([...e.target.files]);}
 
+// Detecta si un XML pertenece a la zona correcta
+function detectarTipoXML(text){
+  // Si el RFC del emisor es el cliente → es emitido (ingreso)
+  // Si el RFC del receptor es el cliente → es recibido (gasto)
+  if(!cliActivo) return 'desconocido';
+  const rfcCli = cliActivo.rfc;
+  const rfcEmMatch = text.match(/Emisor[^>]*Rfc="([^"]+)"/);
+  const rfcReMatch = text.match(/Receptor[^>]*Rfc="([^"]+)"/);
+  // También buscar al revés (atributos en diferente orden)
+  const rfcEmMatch2 = text.match(/Rfc="([^"]+)"[^>]*RegimenFiscal/);
+  const rfcE = rfcEmMatch?rfcEmMatch[1]:(rfcEmMatch2?rfcEmMatch2[1]:'');
+  const rfcR = rfcReMatch?rfcReMatch[1]:'';
+  if(rfcE === rfcCli) return 'emitido';
+  if(rfcR === rfcCli) return 'recibido';
+  return 'desconocido';
+}
+
 function loadXMLEmit(files){
   let p=files.length;if(!p)return;
+  let rechazados=0;
   files.forEach(f=>{
-    // Check for duplicates by filename
     if(xmlEmitidos.find(x=>x.name===f.name)){
-      toast('⚠ '+f.name.substring(0,30)+' ya está cargado','err');
+      toast('⚠ '+f.name.substring(0,25)+' ya está cargado','err');
       if(--p===0)renderXMLChips('e');
       return;
     }
     const r=new FileReader();
-    r.onload=e=>{xmlEmitidos.push({name:f.name,text:e.target.result});if(--p===0){renderXMLChips('e');autoSaveXMLs('e');}};
+    r.onload=e=>{
+      const text=e.target.result;
+      const tipo=detectarTipoXML(text);
+      if(tipo==='recibido'){
+        rechazados++;
+        toast('⚠ '+f.name.substring(0,22)+' es un gasto — ponlo en XML Recibidos','err');
+      } else {
+        xmlEmitidos.push({name:f.name,text});
+      }
+      if(--p===0){renderXMLChips('e');if(xmlEmitidos.length>0)autoSaveXMLs('e');}
+    };
     r.readAsText(f,'UTF-8');
   });
 }
@@ -657,12 +988,21 @@ function loadXMLRecib(files){
   let p=files.length;if(!p)return;
   files.forEach(f=>{
     if(xmlRecibidos.find(x=>x.name===f.name)){
-      toast('⚠ '+f.name.substring(0,30)+' ya está cargado','err');
+      toast('⚠ '+f.name.substring(0,25)+' ya está cargado','err');
       if(--p===0)renderXMLChips('r');
       return;
     }
     const r=new FileReader();
-    r.onload=e=>{xmlRecibidos.push({name:f.name,text:e.target.result});if(--p===0){renderXMLChips('r');autoSaveXMLs('r');}};
+    r.onload=e=>{
+      const text=e.target.result;
+      const tipo=detectarTipoXML(text);
+      if(tipo==='emitido'){
+        toast('⚠ '+f.name.substring(0,22)+' es un ingreso — ponlo en XML Emitidos','err');
+      } else {
+        xmlRecibidos.push({name:f.name,text});
+      }
+      if(--p===0){renderXMLChips('r');if(xmlRecibidos.length>0)autoSaveXMLs('r');}
+    };
     r.readAsText(f,'UTF-8');
   });
 }
@@ -989,169 +1329,352 @@ function renderRes(r){
   </tfoot></table></div>`;
 }
   h+=`<div class="pt-footer" style="display:none">FiscoDesk MX | Elaborado: ${new Date().toLocaleDateString('es-MX')} | LISR 2026 · LIVA 2026 · RMF 2026 (DOF 28-12-2025)</div>`;
-  h+=`<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:16px"><button class="btn btn-primary" onclick="genExcel()">⬇ Descargar Excel</button><button class="btn" onclick="window.print()">🖨 Imprimir / PDF</button><button class="btn" onclick="procesar()">↺ Recalcular</button></div>`;
+  h+=`<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:16px">
+    <div style="display:flex;gap:0;border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
+      <button class="btn" onclick="genExcel('mes')" style="border:none;border-radius:0;border-right:1px solid var(--border);background:var(--accent);color:var(--bg);font-weight:600">⬇ Excel del mes</button>
+      <button class="btn" onclick="genExcel('acumulativo')" style="border:none;border-radius:0">⬇ Excel acumulativo</button>
+    </div>
+    <button class="btn" onclick="window.print()">🖨 Imprimir / PDF</button>
+    <button class="btn" onclick="procesar()">↺ Recalcular</button>
+  </div>`;
   document.getElementById('resultados').style.display='block';
   document.getElementById('resultados').innerHTML=h;
 }
 
 // ── EXCEL ─────────────────────────────────────────────
-function genExcel(){
+function genExcel(modo='mes'){
   const{r,c}=lastRes;
-  const mesL=MF[r.mes-1], anio=r.anio, wb=XLSX.utils.book_new();
+  const mesL=MF[r.mes-1], anio=r.anio;
   const hC=window._historial.filter(h=>h.rfc===c.rfc&&h.anio===anio&&h.rc===r.reg);
   const gDed=r.gastosDeducibles||r.recib;
   const gNoDed=r.gastosNoDed||[];
+  const wb=XLSX.utils.book_new();
 
-  // ── Helper para AOA con estilos básicos ──────────
-  function mkSheet(data){ return XLSX.utils.aoa_to_sheet(data); }
+  // ── Colores ──
+  const A1='1F3864', A2='2E74B5', GR='D9D9D9', AM='FFFF00', NA='FFC000';
 
-  // ── HOJA menu ────────────────────────────────────
-  const menuData=[
+  // ── Helper: crear hoja con estilos via HTML table trick ──
+  // XLSX.js soporta estilos via sheet_add_aoa + cell styles
+  function ws(data){ return XLSX.utils.aoa_to_sheet(data); }
+
+  // ── Función para obtener datos de un mes del historial ──
+  function getMesData(mes){
+    if(mes===r.mes) return r;
+    return hC.find(h=>h.mes===mes)||null;
+  }
+
+  // ── HOJA menu ────────────────────────────────────────────
+  const menuRows=[
     [c.nombre],
     ['MENU DE CONTRIBUCIONES POR MES DEL EJERCICIO'],
     ['AÑO', anio],
     [],
     ['CONCENTRADO MENSUAL','TOTAL PAGADO'],
-    ...MF.map((m,i)=>{const h=hC.find(x=>x.mes===i+1);return[m,h?h.isr+h.iva:null];}),
-    [],
-    ['TOTALES',hC.reduce((s,h)=>s+h.isr+h.iva,0)],
-    [],
-    ['REGIMEN SIMPLIFICADO DE CONFIANZA — '+c.nombre,'','','','','','','','','','',''],
-    ['CONTRIBUCION','ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'],
-    ['ISR Simplificado de confianza',...MF.map((_,i)=>{const h=hC.find(x=>x.mes===i+1);return h?h.isr:null;})],
-    ['IVA',...MF.map((_,i)=>{const h=hC.find(x=>x.mes===i+1);return h?h.iva:null;})],
-    ['Totales',...MF.map((_,i)=>{const h=hC.find(x=>x.mes===i+1);return h?h.isr+h.iva:null;})],
   ];
-  XLSX.utils.book_append_sheet(wb,mkSheet(menuData),'menu');
+  MF.forEach((m,i)=>{
+    const h=hC.find(x=>x.mes===i+1);
+    menuRows.push([m, h?+(h.isr+h.iva).toFixed(2):null]);
+  });
+  menuRows.push([],[`TOTAL`,hC.reduce((s,h)=>s+(h.isr+h.iva),0)],[]);
+  menuRows.push([`RÉGIMEN: ${r.rl} — ${c.rfc} — ${anio}`]);
+  menuRows.push(['CONTRIBUCION',...MF.map(m=>m.substring(0,3)),'TOTAL']);
+  menuRows.push(['ISR Simplificado de confianza',...MF.map((_,i)=>{const h=hC.find(x=>x.mes===i+1);return h?+h.isr.toFixed(2):null;}),hC.reduce((s,h)=>s+h.isr,0)]);
+  menuRows.push(['IVA',...MF.map((_,i)=>{const h=hC.find(x=>x.mes===i+1);return h?+h.iva.toFixed(2):null;}),hC.reduce((s,h)=>s+h.iva,0)]);
+  menuRows.push(['TOTALES',...MF.map((_,i)=>{const h=hC.find(x=>x.mes===i+1);return h?+(h.isr+h.iva).toFixed(2):null;}),hC.reduce((s,h)=>s+h.isr+h.iva,0)]);
+  XLSX.utils.book_append_sheet(wb,ws(menuRows),'menu');
 
-  // ── HOJA PPISR ───────────────────────────────────
-  const isrHeader=['Procedimiento de calculo','ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC','TOTAL'];
-  const getMesVal=(field,mes)=>{
-    if(mes===r.mes) return r[field]||0;
-    const h=hC.find(x=>x.mes===mes);
-    return h?h[field]||null:null;
-  };
-  // Para el mes procesado tenemos todos los datos; para otros meses solo isr/iva del historial
-  const isrData=[
+  // ── HOJA PPISR ───────────────────────────────────────────
+  const mesesRange = modo==='mes'?[r.mes]:[...Array(12)].map((_,i)=>i+1);
+  const colsMes = modo==='mes'?[mesL.substring(0,3)]:MF.map(m=>m.substring(0,3));
+  const isrRows=[
     [c.nombre],
     ['ISR del Régimen Simplificado de Confianza de Personas Físicas'],
     [anio],
-    isrHeader,
+    ['Procedimiento de calculo',...colsMes,...(modo==='acumulativo'?['TOTAL']:[])],
     ['INGRESOS'],
-    ['Ingresos cobrados del mes (precargados)',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?r.ingGrav:(hC.find(x=>x.mes===mes)?.ingGrav||null);})],
-    ['(+) Ingresos adicionales del mes',...Array(12).fill(null)],
-    ['(=) Total ingresos del mes',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?r.ingGrav:(hC.find(x=>x.mes===mes)?.ingGrav||null);})],
+    ['Ingresos cobrados del mes (precargados)',...mesesRange.map(mes=>{const d=getMesData(mes);return d?+(d.ingGrav||0).toFixed(2):null;}),...(modo==='acumulativo'?[mesesRange.reduce((s,mes)=>{const d=getMesData(mes);return s+(d?.ingGrav||0);},0)]:[] )],
+    ['(-) Ingresos exentos (IVA)',...mesesRange.map(mes=>{const d=getMesData(mes);return d?+(d.ingEx||0).toFixed(2):null;})],
+    ['(=) Total ingresos ISR del mes',...mesesRange.map(mes=>{const d=getMesData(mes);return d?+(d.ingGrav||0).toFixed(2):null;})],
     ['DETERMINACIÓN'],
-    ['(=) Ingresos cobrados y amparados',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?r.ingGrav:(hC.find(x=>x.mes===mes)?.ingGrav||null);})],
-    ['(-) Ingresos exentos',...MF.map((_,i)=>i+1===r.mes?(r.ingEx||0):null)],
-    ['(=) Base gravable',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?r.ingGrav:(hC.find(x=>x.mes===mes)?.ingGrav||null);})],
-    ['Tasa aplicable',...MF.map((_,i)=>i+1===r.mes?r.tasa:null)],
-    ['Impuesto mensual',...MF.map((_,i)=>i+1===r.mes?r.isrMens:null)],
-    ['(-) ISR retenido',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?r.isrRetI:(hC.find(x=>x.mes===mes)?.isrRet||null);})],
-    ['(=) Impuesto a cargo',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?r.isrCargo:(hC.find(x=>x.mes===mes)?.isr||null);})],
+    ['(=) Base gravable',...mesesRange.map(mes=>{const d=getMesData(mes);return d?+(d.ingGrav||0).toFixed(2):null;})],
+    ['Tasa aplicable',...mesesRange.map(mes=>{const d=getMesData(mes);return d?d.tasa:null;})],
+    ['Impuesto mensual',...mesesRange.map(mes=>{const d=getMesData(mes);return d?+(d.isrMens||0).toFixed(2):null;})],
+    ['(-) ISR retenido por PM (Art.113-J)',...mesesRange.map(mes=>{const d=getMesData(mes);return d?+((d.isrRetI||d.isrRet||0)).toFixed(2):null;})],
+    ['(=) ISR a pagar',...mesesRange.map(mes=>{const d=getMesData(mes);return d?+((d.isrCargo||d.isr||0)).toFixed(2):null;}),...(modo==='acumulativo'?[mesesRange.reduce((s,mes)=>{const d=getMesData(mes);return s+(d?.isrCargo||d?.isr||0);},0)]:[] )],
     ['PAGO'],
-    ['A cargo',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?r.isrCargo:(hC.find(x=>x.mes===mes)?.isr||null);})],
-    ['Total de contribuciones',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?r.isrCargo:(hC.find(x=>x.mes===mes)?.isr||null);})],
-    ['Cantidad a cargo',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?r.isrCargo:(hC.find(x=>x.mes===mes)?.isr||null);})],
-    ['Cantidad a pagar',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?r.isrCargo:(hC.find(x=>x.mes===mes)?.isr||null);})],
+    ['A cargo',...mesesRange.map(mes=>{const d=getMesData(mes);return d?+((d.isrCargo||d.isr||0)).toFixed(2):null;})],
+    ['Cantidad a pagar',...mesesRange.map(mes=>{const d=getMesData(mes);return d?+((d.isrCargo||d.isr||0)).toFixed(2):null;})],
     [],
     ['Tabla de tasas Art.113-E LISR'],
-    ['','Monto ingresos anuales','Tasa Mensual'],
-    ['',25000,0.010],['',50000,0.011],['',83333.33,0.015],['',208333.33,0.020],['',3500000,0.025],
+    ['','Monto ingresos anuales (pesos)','Tasa Mensual'],
+    ['','Hasta $25,000',0.010],['','Hasta $50,000',0.011],['','Hasta $83,333',0.015],['','Hasta $208,333',0.020],['','Hasta $3,500,000',0.025],
   ];
-  XLSX.utils.book_append_sheet(wb,mkSheet(isrData),'PPISR');
+  XLSX.utils.book_append_sheet(wb,ws(isrRows),'PPISR');
 
-  // ── HOJA PM IVA ──────────────────────────────────
-  const ivaData=[
+  // ── HOJA PM IVA ──────────────────────────────────────────
+  const ivaRows=[
     [c.nombre,'','','','','','','','','','','','',anio],
     ['Calculo del pago definitivo de IVA'],
-    ['Concepto','ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'],
+    ['Concepto',...colsMes,...(modo==='acumulativo'?['TOTAL']:[])],
     ['DETERMINACIÓN'],
-    ['Actividades gravadas a la tasa del 16%',...MF.map((_,i)=>i+1===r.mes?(r.ingGravIVA||r.ingGrav):null)],
-    ['Actividades exentas',...MF.map((_,i)=>i+1===r.mes?r.ingEx:null)],
-    ['IVA a cargo a la tasa del 16%',...MF.map((_,i)=>i+1===r.mes?r.ivaTrasI:null)],
-    ['(-) IVA retenido',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?r.ivaRetI:(hC.find(x=>x.mes===mes)?.ivaRet||null);})],
-    ['(-) IVA acreditable del periodo (precarga SAT — sin combustibles)',...MF.map((_,i)=>i+1===r.mes?(r.ivaAcredSAT||r.ivaAcred):null)],
-    ['IVA pagado en gastos y adquisiciones'],
-    ['IVA acreditable por actividades gravadas',...MF.map((_,i)=>i+1===r.mes?(r.ivaAcredSAT||r.ivaAcred):null)],
-    ['(=) IVA acreditable del período',...MF.map((_,i)=>i+1===r.mes?(r.ivaAcredSAT||r.ivaAcred):null)],
-    ['Cantidad a cargo (precarga SAT)',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?Math.max(0,(r.ivaTrasI||0)-(r.ivaRetI||0)-(r.ivaAcredSAT||r.ivaAcred||0)):(hC.find(x=>x.mes===mes)?.iva||null);})],
-    ['(-)Acreditamiento saldo a favor periodos anteriores',...Array(12).fill(null)],
-    ['Cantidad a pagar',...MF.map((_,i)=>{const mes=i+1;return mes===r.mes?Math.max(0,(r.ivaTrasI||0)-(r.ivaRetI||0)-(r.ivaAcredSAT||r.ivaAcred||0)):(hC.find(x=>x.mes===mes)?.iva||null);})],
+    ['Actividades gravadas a la tasa del 16%',...mesesRange.map(mes=>{const d=getMesData(mes);return d?+((d.ingGravIVA||d.ingGrav||0)).toFixed(2):null;})],
+    ['Actividades exentas',...mesesRange.map(mes=>{const d=getMesData(mes);return d?+(d.ingEx||0).toFixed(2):null;})],
+    ['IVA a cargo 16%',...mesesRange.map(mes=>{const d=getMesData(mes);return d?+(d.ivaTrasI||0).toFixed(2):null;})],
+    ['(-) IVA retenido',...mesesRange.map(mes=>{const d=getMesData(mes);return d?+((d.ivaRetI||d.ivaRet||0)).toFixed(2):null;})],
+    ['(-) IVA acreditable (precarga SAT — sin combustibles)',...mesesRange.map(mes=>{const d=getMesData(mes);return d?+((d.ivaAcredSAT||d.ivaAcred||d.iva||0)).toFixed(2):null;})],
+    ['IVA a pagar (precarga SAT)',...mesesRange.map(mes=>{
+      const d=getMesData(mes);
+      if(!d) return null;
+      const cargo=Math.max(0,(d.ivaTrasI||0)-(d.ivaRetI||d.ivaRet||0)-(d.ivaAcredSAT||d.ivaAcred||0));
+      const favor=Math.max(0,(d.ivaRetI||d.ivaRet||0)+(d.ivaAcredSAT||d.ivaAcred||0)-(d.ivaTrasI||0));
+      return favor>0?+(-favor).toFixed(2):+cargo.toFixed(2);
+    }),...(modo==='acumulativo'?[mesesRange.reduce((s,mes)=>{const d=getMesData(mes);return s+(d?.iva||0);},0)]:[] )],
     [],
-    ...(r.ivaAcredComb>0?[
-      ['⛽ IVA combustibles (captura manual en SAT — Art.5 LIVA)',...MF.map((_,i)=>i+1===r.mes?r.ivaAcredComb:null)],
-      ['IVA a pagar TOTAL (con combustibles)',...MF.map((_,i)=>i+1===r.mes?Math.max(0,(r.ivaTrasI||0)-(r.ivaRetI||0)-(r.ivaAcred||0)):null)],
-    ]:[]),
   ];
-  XLSX.utils.book_append_sheet(wb,mkSheet(ivaData),'PM IVA');
+  if(r.ivaAcredComb>0){
+    ivaRows.push(['⛽ IVA combustibles — captura manual en SAT (Art.5 LIVA)',...mesesRange.map(mes=>mes===r.mes?+(r.ivaAcredComb||0).toFixed(2):null)]);
+    ivaRows.push(['IVA a pagar TOTAL (con combustibles)',...mesesRange.map(mes=>{
+      if(mes!==r.mes) return null;
+      return +Math.max(0,(r.ivaTrasI||0)-(r.ivaRetI||0)-(r.ivaAcred||0)).toFixed(2);
+    })]);
+  }
+  XLSX.utils.book_append_sheet(wb,ws(ivaRows),'PM IVA');
 
-  // ── HOJA Ingresos ────────────────────────────────
+  // ── HOJA Ingresos ─────────────────────────────────────────
   const ingH=['FECHA','FOLIO FISCAL','RFC','CLIENTE','CONCEPTO','IMPORTE','IVA','IVA EXENTO','IVA RET','ISR RET','TOTAL','Metodo','Forma Pago','Efecto'];
-  const ingRows=r.emit.map(x=>[x.fecha?.substring(0,10),x.uuid,x.rfcR,x.nomR,x.conceptos,x.sub,x.ivaTras,x.ivaEx||0,x.ivaRet,x.isrRet,x.total,x.metodo,'','I - Ingreso']);
-  const ingTotales=['TOTALES','','','','',
-    r.emit.reduce((s,x)=>s+x.sub,0),
-    r.emit.reduce((s,x)=>s+x.ivaTras,0),
-    r.emit.reduce((s,x)=>s+(x.ivaEx||0),0),
-    r.emit.reduce((s,x)=>s+x.ivaRet,0),
-    r.emit.reduce((s,x)=>s+x.isrRet,0),
-    r.emit.reduce((s,x)=>s+x.total,0),
-  ];
-  const ingData=[[c.nombre],[`FACTURACIÓN ${anio}`],[],[mesL.toUpperCase()],ingH,...ingRows,[],ingTotales];
-  XLSX.utils.book_append_sheet(wb,mkSheet(ingData),'Ingresos');
+  const ingRows=r.emit.map(x=>[x.fecha?.substring(0,10),x.uuid,x.rfcR,x.nomR,x.conceptos,+x.sub.toFixed(2),+x.ivaTras.toFixed(2),+(x.ivaEx||0).toFixed(2),+x.ivaRet.toFixed(2),+x.isrRet.toFixed(2),+x.total.toFixed(2),x.metodo,'','I - Ingreso']);
+  const ingTot=[`TOTALES ${mesL} ${anio}`,'','','','',
+    +r.emit.reduce((s,x)=>s+x.sub,0).toFixed(2),
+    +r.emit.reduce((s,x)=>s+x.ivaTras,0).toFixed(2),
+    +r.emit.reduce((s,x)=>s+(x.ivaEx||0),0).toFixed(2),
+    +r.emit.reduce((s,x)=>s+x.ivaRet,0).toFixed(2),
+    +r.emit.reduce((s,x)=>s+x.isrRet,0).toFixed(2),
+    +r.emit.reduce((s,x)=>s+x.total,0).toFixed(2),'','',''];
+  const ingData=[[c.nombre],[`FACTURACIÓN ${anio}`],[],[mesL.toUpperCase()],ingH,...ingRows,[],ingTot];
+  XLSX.utils.book_append_sheet(wb,ws(ingData),'Ingresos');
 
-  // ── HOJA Gastos ──────────────────────────────────
-  const gH=['FECHA','FOLIO FISCAL','RFC EMISOR','PROVEEDOR','CONCEPTO','IMPORTE','DESCUENTO','IVA','TOTAL','Metodo','Forma Pago','Uso CFDI','Reg.Receptor','Deducible SAT','IVA acreditable'];
+  // ── HOJA Gastos ───────────────────────────────────────────
+  const gH=['FECHA','FOLIO FISCAL','RFC EMISOR','PROVEEDOR','CONCEPTO','IMPORTE','DESCUENTO','IVA','TOTAL','Metodo','Forma Pago','Uso CFDI','Reg.Receptor','Deducible SAT','IVA Acreditable'];
   const gRows=[
-    ...gDed.map(x=>[x.fecha?.substring(0,10),x.uuid,x.rfcE,x.nomE,x.conceptos,x.tipo==='P'?0:x.sub,0,x.tipo==='P'?x.ivaImporteP:x.ivaTras,x.tipo==='P'?0:x.total,x.metodo||'P',x.forma||x.formaPagoP,x.usoCFDI,x.regimenR,'SÍ',x.tipo==='P'?x.ivaImporteP:x.ivaTras]),
-    ...gNoDed.map(x=>[x.fecha?.substring(0,10),x.uuid,x.rfcE,x.nomE,x.conceptos,x.sub,0,x.ivaTras,x.total,x.metodo,x.forma,x.usoCFDI,x.regimenR,'NO',0]),
+    ...gDed.map(x=>[x.fecha?.substring(0,10),x.uuid,x.rfcE,x.nomE,x.conceptos,
+      x.tipo==='P'?0:+x.sub.toFixed(2),0,
+      x.tipo==='P'?+(x.ivaImporteP||0).toFixed(2):+x.ivaTras.toFixed(2),
+      x.tipo==='P'?0:+x.total.toFixed(2),
+      x.metodo||'P',x.forma||x.formaPagoP||'',x.usoCFDI||'',x.regimenR||'','SÍ',
+      x.tipo==='P'?+(x.ivaImporteP||0).toFixed(2):+x.ivaTras.toFixed(2)]),
+    ...gNoDed.map(x=>[x.fecha?.substring(0,10),x.uuid,x.rfcE,x.nomE,x.conceptos,
+      +x.sub.toFixed(2),0,+x.ivaTras.toFixed(2),+x.total.toFixed(2),
+      x.metodo||'',x.forma||'',x.usoCFDI||'',x.regimenR||'','NO',0]),
   ];
-  const gTotDed=gDed.reduce((s,x)=>s+(x.tipo==='P'?x.ivaImporteP:x.ivaTras),0);
-  const gSub=gDed.reduce((s,x)=>s+(x.tipo==='P'?0:x.sub),0);
-  const gTotales=['DEDUCIBLES ('+gDed.length+')','','','','',gSub,gDed.reduce((s,x)=>s+(x.descuento||0),0),gTotDed,'','','','','','',''];
-  const gTotNoD=['NO DEDUCIBLES ('+gNoDed.length+')','','','','',gNoDed.reduce((s,x)=>s+x.sub,0),0,gNoDed.reduce((s,x)=>s+x.ivaTras,0),'','','','','','',''];
-  const gData=[[c.nombre],[`GASTOS ${anio}`],[],[mesL.toUpperCase()],gH,...gRows,[],gTotales,gTotNoD];
-  XLSX.utils.book_append_sheet(wb,mkSheet(gData),'Gastos');
+  const gTotDed=+gDed.reduce((s,x)=>s+(x.tipo==='P'?x.ivaImporteP||0:x.ivaTras),0).toFixed(2);
+  const gSubDed=+gDed.reduce((s,x)=>s+(x.tipo==='P'?0:x.sub),0).toFixed(2);
+  const gTotNoD=[`NO DEDUCIBLES (${gNoDed.length})`,'','','','',
+    +gNoDed.reduce((s,x)=>s+x.sub,0).toFixed(2),0,
+    +gNoDed.reduce((s,x)=>s+x.ivaTras,0).toFixed(2),'','','','','','',0];
+  const gTotDedRow=[`DEDUCIBLES (${gDed.length}) — IVA acreditable total`,'','','','',
+    gSubDed,0,gTotDed,'','','','','','',gTotDed];
+  const gData=[[c.nombre],[`GASTOS ${anio}`],[],[mesL.toUpperCase()],gH,...gRows,[],gTotDedRow,gTotNoD];
+  XLSX.utils.book_append_sheet(wb,ws(gData),'Gastos');
 
-  // ── HOJA Cfdi I ──────────────────────────────────
-  const ciH=['UUID','Fecha emision','RFC receptor','Razon receptor','Regimen receptor','Uso CFDI','Tipo','Estado','Metodo pago','Forma pago','SubTotal','Descuento','IVA 16%','IVA Exento','IVA Retenido','ISR Retenido','Total'];
-  const ciRows=r.emit.map(x=>[x.uuid,x.fecha,x.rfcR,x.nomR,x.regimenR||'',x.usoCFDI||'',x.tipo,'VIGENTE',x.metodo,'',x.sub,0,x.ivaTras,x.ivaEx||0,x.ivaRet,x.isrRet,x.total]);
-  XLSX.utils.book_append_sheet(wb,mkSheet([[`Cfdi I — ${anio}`],[mesL],ciH,...ciRows]),'Cfdi I');
+  // ── HOJA Otras Ret ────────────────────────────────────────
+  XLSX.utils.book_append_sheet(wb,ws([[c.nombre,'',anio],['OTRAS RETENCIONES DE ISR'],['Concepto',...colsMes,(modo==='acumulativo'?'TOTAL':'')],['RETENCIONES POR SALARIOS',...colsMes.map(()=>0)],['RETENCIONES POR ASIMILADOS',...colsMes.map(()=>0)],['TOTAL RETENCIONES ISR',...colsMes.map(()=>0)],['OTRAS RETENCIONES DE IVA'],['TOTAL RETENCIONES IVA',...colsMes.map(()=>0)]]),'Otras Ret ISR IVA');
 
-  // ── HOJA Cfdi E ──────────────────────────────────
-  const ceH=['UUID','Fecha emision','RFC emisor','Razon emisor','Regimen emisor','RFC receptor','Regimen receptor','Uso CFDI','Tipo','Estado','Metodo pago','Forma pago','SubTotal','Descuento','IVA 16%','IVA Exento','IVA Retenido','ISR Retenido','IEPS','Total','Deducible SAT'];
+  // ── HOJA Subsidio ─────────────────────────────────────────
+  XLSX.utils.book_append_sheet(wb,ws([[c.nombre],['SUBSIDIO PARA EL EMPLEO'],['Concepto',...colsMes],['Pendiente al inicio del mes',...colsMes.map(()=>0)],['Pagado a trabajadores en el mes',...colsMes.map(()=>0)],['Total por aplicar en el mes',...colsMes.map(()=>0)]]),'Subsidio');
+
+  // ── HOJA Saldo a Favor IVA ────────────────────────────────
+  XLSX.utils.book_append_sheet(wb,ws([['RELACION SALDOS A FAVOR DE IVA'],['MES','MONTO ORIGINAL','NUM OPERACION','FECHA PRESENTACION','ACREDITADO','MES ACREDITADO','NUM OPERACION','FECHA ACREDITAMIENTO','ACTUALIZACION','SALDO ANTES DE APLICAR','REMANENTE ACTUALIZADO','ACREDITADO CONTRA']]),'Saldo a Favor Iva');
+
+  // ── HOJA Cfdi I ───────────────────────────────────────────
+  const ciH=['UUID','Fecha','RFC receptor','Razon receptor','Regimen receptor','Uso CFDI','Tipo','Estado','Metodo','Forma pago','SubTotal','Descuento','IVA 16%','IVA Exento','IVA Ret','ISR Ret','Total'];
+  XLSX.utils.book_append_sheet(wb,ws([[`CFDI EMITIDOS — ${mesL} ${anio}`],[c.nombre],ciH,...r.emit.map(x=>[x.uuid,x.fecha?.substring(0,10),x.rfcR,x.nomR,x.regimenR||'',x.usoCFDI||'',x.tipo,'VIGENTE',x.metodo,'',+x.sub.toFixed(2),0,+x.ivaTras.toFixed(2),+(x.ivaEx||0).toFixed(2),+x.ivaRet.toFixed(2),+x.isrRet.toFixed(2),+x.total.toFixed(2)])]),'Cfdi I');
+
+  // ── HOJA Cfdi E ───────────────────────────────────────────
+  const ceH=['UUID','Fecha','RFC emisor','Proveedor','Concepto','Regimen emisor','RFC receptor','Regimen receptor','Uso CFDI','Tipo','Estado','Metodo','Forma pago','SubTotal','Descuento','IVA 16%','IVA Exento','IVA Ret','ISR Ret','IEPS','Total','Deducible SAT'];
   const ceRows=r.recib.map(x=>{
     const ded=(r.gastosDeducibles||[]).includes(x);
-    return[x.uuid,x.fecha,x.rfcE,x.nomE,'',x.rfcR,x.regimenR,x.usoCFDI,x.tipo,'VIGENTE',x.metodo||'P',x.forma||x.formaPagoP,x.sub,0,x.ivaTras,x.ivaEx||0,x.ivaRet||0,x.isrRet||0,0,x.total,ded?'SÍ':'NO'];
+    return[x.uuid,x.fecha?.substring(0,10),x.rfcE,x.nomE,x.conceptos,x.regimenR||'',x.rfcR,x.regimenR||'',x.usoCFDI||'',x.tipo,'VIGENTE',x.metodo||'P',x.forma||x.formaPagoP||'',+x.sub.toFixed(2),0,+x.ivaTras.toFixed(2),+(x.ivaEx||0).toFixed(2),+(x.ivaRet||0).toFixed(2),+(x.isrRet||0).toFixed(2),0,+x.total.toFixed(2),ded?'SÍ':'NO'];
   });
-  XLSX.utils.book_append_sheet(wb,mkSheet([[`Cfdi E — ${anio}`],[mesL],ceH,...ceRows]),'Cfdi E');
+  XLSX.utils.book_append_sheet(wb,ws([[`CFDI RECIBIDOS — ${mesL} ${anio}`],[c.nombre],ceH,...ceRows]),'Cfdi E');
 
-  // ── Otras Ret, Subsidio, Saldo a Favor, Perdidas, INPC (plantillas) ──
-  XLSX.utils.book_append_sheet(wb,mkSheet([[c.nombre,'',anio],['OTRAS RETENCIONES DE ISR'],['Concepto','ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC','Total'],['RETENCIONES POR SALARIOS',...Array(13).fill(0)],['RETENCIONES POR ASIMILADOS',...Array(13).fill(0)],['TOTAL RETENCIONES ISR',...Array(13).fill(0)],['OTRAS RETENCIONES DE IVA'],['TOTAL RETENCIONES IVA',...Array(13).fill(0)]]),'Otras Ret ISR IVA');
-  XLSX.utils.book_append_sheet(wb,mkSheet([[c.nombre],['SUBSIDIO PARA EL EMPLEO'],['Concepto','ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'],['Pendiente al inicio del mes',...Array(12).fill(0)],['Pagado a trabajadores en el mes',...Array(12).fill(0)],['Total por aplicar en el mes',...Array(12).fill(0)]]),'Subsidio');
-  XLSX.utils.book_append_sheet(wb,mkSheet([['RELACION SALDOS A FAVOR DE IVA'],['MES','MONTO ORIGINAL','NUM OPERACION','FECHA PRESENTACION','ACREDITADO','MES ACREDITADO','NUM OPERACION','FECHA ACREDITAMIENTO','ACTUALIZACION','SALDO ANTES DE APLICAR','REMANENTE ACTUALIZADO','ACREDITADO CONTRA']]),'Saldo a Favor Iva');
-  XLSX.utils.book_append_sheet(wb,mkSheet([['APLICACION DE PERDIDAS'],['AÑO','ACTUALIZACION','MONTO PERDIDA','1er MES 2a MITAD','ULTIMO MES','FACTOR ACTUAL.','PERDIDA ACTUAL.','AMORTIZACION','REMANENTE','TIPO DECLARACION','FECHA PRESENTACION','NUM OPERACION']]),'Perdidas');
-  XLSX.utils.book_append_sheet(wb,mkSheet([['FECHA','INPC base 2010'],['2024-01-01',133.097],['2024-02-01',133.934],['2024-03-01',135.099],['2024-04-01',135.977],['2024-05-01',136.654],['2024-06-01',137.063],['2024-07-01',137.589],['2024-08-01',138.074],['2024-09-01',138.397],['2024-10-01',139.191],['2024-11-01',139.669],['2024-12-01',140.140],['2025-01-01',141.152],['2025-02-01',141.813],['2025-03-01',142.519],['2025-04-01',143.204],['2025-05-01',143.818],['2025-06-01',144.243],['2025-07-01',144.705],['2025-08-01',145.126],['2025-09-01',145.418],['2025-10-01',146.077],['2025-11-01',146.512],['2025-12-01',147.002],['2026-01-01',147.958],['2026-02-01',148.621],['2026-03-01',149.317],['2026-04-01',150.009]]),'INPC');
+  // ── HOJA Perdidas ─────────────────────────────────────────
+  XLSX.utils.book_append_sheet(wb,ws([['APLICACION DE PERDIDAS'],['AÑO','ACTUALIZACION','MONTO PERDIDA','1er MES 2a MITAD','ULTIMO MES','FACTOR ACTUAL.','PERDIDA ACTUAL.','AMORTIZACION','REMANENTE','TIPO DECLARACION','FECHA PRESENTACION','NUM OPERACION']]),'Perdidas');
 
-  XLSX.writeFile(wb,`PT_${c.rfc}_${r.rl.replace(/\s/g,'_')}_${mesL}_${anio}.xlsx`);
+  // ── HOJA INPC ─────────────────────────────────────────────
+  XLSX.utils.book_append_sheet(wb,ws([['FECHA','INPC base 2010'],['2024-01-01',133.097],['2024-02-01',133.934],['2024-03-01',135.099],['2024-04-01',135.977],['2024-05-01',136.654],['2024-06-01',137.063],['2024-07-01',137.589],['2024-08-01',138.074],['2024-09-01',138.397],['2024-10-01',139.191],['2024-11-01',139.669],['2024-12-01',140.140],['2025-01-01',141.152],['2025-02-01',141.813],['2025-03-01',142.519],['2025-04-01',143.204],['2025-05-01',143.818],['2025-06-01',144.243],['2025-07-01',144.705],['2025-08-01',145.126],['2025-09-01',145.418],['2025-10-01',146.077],['2025-11-01',146.512],['2025-12-01',147.002],['2026-01-01',147.958],['2026-02-01',148.621],['2026-03-01',149.317],['2026-04-01',150.009]]),'INPC');
+
+  const sufijo = modo==='mes'?mesL:`ACUMULATIVO_${anio}`;
+  XLSX.writeFile(wb,`PT_${c.rfc}_${r.rl.replace(/\s/g,'_')}_${sufijo}_${anio}.xlsx`);
 }
 
 // ── HISTORIAL ─────────────────────────────────────────
 window.renderHist = function(){
-  document.getElementById('nb-hist').textContent=window._historial.length;
-  const d=document.getElementById('hist-list'),e=document.getElementById('hist-empty');
-  if(!window._historial.length){d.innerHTML='';e.style.display='block';return;}
+  const total = window._historial.length;
+  document.getElementById('nb-hist').textContent = total;
+  const d=document.getElementById('hist-list'), e=document.getElementById('hist-empty');
+  if(!total){d.innerHTML='';e.style.display='block';return;}
   e.style.display='none';
-  const s=[...window._historial].sort((a,b)=>b.anio-a.anio||b.mes-a.mes);
-  d.innerHTML=s.map(h=>`<div class="hist-row">
-    <div style="font-family:var(--mono);font-size:11px;color:var(--accent);min-width:75px">${MF[h.mes-1].substring(0,3)} ${h.anio}</div>
-    <div style="flex:1"><div style="font-size:13px;font-weight:500">${h.nom}</div><div style="font-size:11px;color:var(--text3);font-family:var(--mono)">${h.rfc}</div></div>
-    <span class="badge ${h.rc==='626'?'b-resico':h.rc==='sal'?'b-sal':'b-emp'}">${h.rl||'—'}</span>
-    <div style="text-align:right;min-width:115px"><div style="font-family:var(--mono);font-size:12px">ISR ${fmt(h.isr)}</div><div style="font-family:var(--mono);font-size:12px;color:var(--text2)">IVA ${fmt(h.iva)}</div></div>
-  </div>`).join('');
+
+  // Agrupar por cliente (rfc)
+  const byClient = {};
+  window._historial.forEach(h=>{
+    if(!byClient[h.rfc]) byClient[h.rfc]={rfc:h.rfc,nom:h.nom,meses:[]};
+    byClient[h.rfc].meses.push(h);
+  });
+
+  d.innerHTML = Object.values(byClient).map(cli=>{
+    const meses = [...cli.meses].sort((a,b)=>b.anio-a.anio||b.mes-a.mes);
+    const totalISR = meses.reduce((s,h)=>s+h.isr,0);
+    const totalIVA = meses.reduce((s,h)=>s+h.iva,0);
+    const regBadge = meses[0]?.rc==='626'?'b-resico':meses[0]?.rc==='sal'?'b-sal':'b-emp';
+    const regLabel = meses[0]?.rl||'—';
+    const expanded = `hist-exp-${cli.rfc}`;
+
+    const mesesHTML = meses.map(h=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:7px 14px 7px 38px;border-top:1px solid var(--border);cursor:pointer;transition:background .12s"
+           onmouseenter="this.style.background='rgba(0,0,0,.03)'" onmouseleave="this.style.background=''"
+           onclick="verHistorialMes('${h.rfc}',${h.mes},${h.anio},'${h.rc}')">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--accent);min-width:90px">${MF[h.mes-1]} ${h.anio}</div>
+        <span class="badge ${regBadge}" style="font-size:9px">${regLabel}</span>
+        <div style="flex:1"></div>
+        <div style="font-family:var(--mono);font-size:11px;text-align:right">
+          <span style="color:var(--danger)">ISR ${fmt(h.isr)}</span>
+          <span style="color:var(--text2);margin-left:10px">IVA ${fmt(h.iva)}</span>
+        </div>
+        <div style="font-size:10px;color:var(--accent);margin-left:8px">Ver →</div>
+      </div>`).join('');
+
+    return `<div style="border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:8px;background:var(--surface)">
+      <div style="display:flex;align-items:center;gap:11px;padding:12px 14px;cursor:pointer"
+           onclick="toggleHist('${expanded}')">
+        <div style="flex:1">
+          <div style="font-family:var(--mono);font-size:11px;color:var(--accent)">${cli.rfc}</div>
+          <div style="font-size:13px;font-weight:500;margin-top:2px">${cli.nom}</div>
+        </div>
+        <div style="text-align:center;min-width:60px">
+          <div style="font-family:var(--mono);font-size:16px;font-weight:600;color:var(--accent)">${meses.length}</div>
+          <div style="font-size:10px;color:var(--text2)">mes${meses.length!==1?'es':''}</div>
+        </div>
+        <div style="text-align:right;min-width:130px">
+          <div style="font-family:var(--mono);font-size:11px;color:var(--danger)">ISR ${fmt(totalISR)}</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">IVA ${fmt(totalIVA)}</div>
+        </div>
+        <div id="${expanded}-ico" style="font-size:14px;color:var(--text2);margin-left:6px;transition:transform .2s">▸</div>
+      </div>
+      <div id="${expanded}" style="display:none">${mesesHTML}</div>
+    </div>`;
+  }).join('');
 };
 
+function toggleHist(id){
+  const el=document.getElementById(id);
+  const ico=document.getElementById(id+'-ico');
+  const open=el.style.display==='none';
+  el.style.display=open?'block':'none';
+  if(ico) ico.style.transform=open?'rotate(90deg)':'';
+}
+
+async function verHistorialMes(rfc, mes, anio, rc){
+  // Cargar XML guardados y recalcular
+  const cli = window._clientes.find(c=>c.rfc===rfc);
+  if(!cli){toast('Cliente no encontrado','err');return;}
+
+  // Ir a la pantalla de proceso
+  document.getElementById('sel-cli').value = rfc;
+  onCliChange();
+  document.getElementById('sel-anio').value = anio;
+  selMes(mes);
+  goPanel('proceso', document.querySelectorAll('.nav-item')[1]);
+
+  // Intentar cargar XML guardados de Firebase
+  toast('Cargando XML guardados...');
+  await cargarXMLsGuardados();
+  if(xmlEmitidos.length > 0 || xmlRecibidos.length > 0){
+    toast('✓ XML cargados — presiona Calcular para ver resultados');
+  } else {
+    toast('Sin XML guardados para este mes — sube los XML para recalcular','err');
+  }
+}
+
 // ── LEGAL ─────────────────────────────────────────────
+// ── GESTIÓN DE USUARIOS ────────────────────────────────────────────────
+async function loadUsuarios(){
+  try{
+    const {getDocs,collection} = await import("https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js");
+    const snap = await getDocs(collection(window._db,'usuarios'));
+    const users=[];
+    snap.forEach(d=>users.push({id:d.id,...d.data()}));
+    renderUsuarios(users);
+  }catch(e){
+    // Si no hay usuarios en Firebase mostrar el default
+    renderUsuarios(USUARIOS_DEFAULT);
+  }
+}
+
+function renderUsuarios(users){
+  const el=document.getElementById('usuarios-list');
+  if(!el) return;
+  if(!users.length){el.innerHTML='<div class="empty"><div class="ico">👤</div><h3>Sin usuarios adicionales</h3></div>';return;}
+  el.innerHTML=users.map(u=>`
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--r);margin-bottom:7px;background:var(--surface)">
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500">${u.nombre||u.user}</div>
+        <div style="font-size:11px;color:var(--text2);font-family:var(--mono)">${u.user}</div>
+        ${u.clientesPermitidos?.length?`<div style="font-size:11px;color:var(--text3);margin-top:3px">Clientes: ${u.clientesPermitidos.join(', ')}</div>`:''}
+      </div>
+      <span class="${u.rol==='admin'?'admin-badge':'aux-badge'}">${u.rol==='admin'?'ADMIN':'AUXILIAR'}</span>
+      <button class="btn btn-sm btn-danger" onclick="eliminarUsuario('${u.user}')">Eliminar</button>
+    </div>`).join('');
+}
+
+function openNuevoUsuario(){
+  ['u-user','u-pass','u-nombre'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('u-rol').value='auxiliar';
+  updRolUI();
+  document.getElementById('m-usuario').classList.add('open');
+}
+
+function updRolUI(){
+  const rol=document.getElementById('u-rol').value;
+  const fg=document.getElementById('fg-clientes-perm');
+  fg.style.display=rol==='auxiliar'?'block':'none';
+  if(rol==='auxiliar'){
+    const list=document.getElementById('clientes-check-list');
+    list.innerHTML=window._clientes.map(c=>`
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer">
+        <input type="checkbox" value="${c.rfc}" style="width:auto">
+        <span><span class="badge b-resico" style="font-size:9px">626</span> ${c.rfc} — ${c.nombre}</span>
+      </label>`).join('');
+  }
+}
+
+async function guardarUsuario(){
+  const user=document.getElementById('u-user').value.trim().toLowerCase();
+  const pass=document.getElementById('u-pass').value;
+  const nombre=document.getElementById('u-nombre').value.trim();
+  const rol=document.getElementById('u-rol').value;
+  if(!user||!pass||!nombre){alert('Todos los campos son obligatorios');return;}
+  const clientesPermitidos=rol==='auxiliar'?[...document.querySelectorAll('#clientes-check-list input:checked')].map(i=>i.value):[];
+  const nuevoUser={user,pass,nombre,rol,clientesPermitidos};
+  try{
+    const {doc,setDoc}=await import("https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js");
+    await setDoc(doc(window._db,'usuarios',user),nuevoUser);
+    toast('Usuario guardado en la nube ☁️');
+    closeM('m-usuario');
+    loadUsuarios();
+  }catch(e){toast('Error al guardar: '+e.message,'err');}
+}
+
+async function eliminarUsuario(user){
+  if(!confirm('¿Eliminar usuario '+user+'?')) return;
+  try{
+    const {doc,deleteDoc}=await import("https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js");
+    await deleteDoc(doc(window._db,'usuarios',user));
+    toast('Usuario eliminado');
+    loadUsuarios();
+  }catch(e){toast('Error: '+e.message,'err');}
+}
+
 function renderLegal(){
   const items=[{cls:'b-resico',tag:'RESICO',t:'Art. 113-E al 113-J LISR',p:['Cálculo mensual sobre ingresos cobrados con CFDI, sin deducciones (Art.113-E)','Tabla mensual: ≤$25K=1.0% | ≤$50K=1.1% | ≤$83K=1.5% | ≤$208K=2.0% | ≤$3.5M=2.5%','Retención 1.25% por personas morales (Art.113-J LISR)','Declaración anual en abril, tabla anual diferente (Art.113-F)','Puede coexistir con Sueldos y Salarios (Art.113-E último párrafo)','Límite: ingresos anuales ≤ $3,500,000']},{cls:'b-emp',tag:'AE',t:'Art. 100-109 LISR — Actividad Empresarial',p:['Ingresos efectivamente cobrados (Art.102)','Deducciones estrictamente indispensables con CFDI (Art.103)','ISR provisional mensual: tabla Art.96 sobre utilidad (Art.106)','IVA mensual definitivo Art.1o. LIVA']},{cls:'b-arr',tag:'ARR',t:'Art. 114-118 LISR — Arrendamiento',p:['Deducción ciega 35% en lugar de deducciones reales (Art.115 párr.2)','ISR tabla Art.96 por remisión del Art.116','Retención 10% cuando arrendatario es persona moral (Art.116 párr.4)','Pago provisional mensual a más tardar día 17']},{cls:'b-sal',tag:'SAL',t:'Art. 94-96 LISR — Sueldos y Salarios',p:['ISR retenido y enterado por el patrón (Art.96)','Declaración independiente del RESICO o Actividad Empresarial','Declaración anual integra ambas fuentes (Título IV LISR)','CFDI nómina complemento 1.2 acredita el ingreso']},{cls:'b-noiva',tag:'IVA',t:'Art. 1o., 5o., 15 LIVA — IVA',p:['Servicios médicos exentos: Art.15 Fracc.XIV LIVA','Acreditamiento total si 100% gravado: Art.5-V-a','Sin acreditamiento si 100% exento: Art.5-V-b','Actividad mixta: proporción Art.5-V-c','Retención 2/3 IVA cuando receptor es PM: Art.1o-A LIVA']}];
   document.getElementById('legal-body').innerHTML=`<div class="alert a-info" style="margin-bottom:14px">Base legal: <strong>LISR 2026</strong> · <strong>LIVA 2026</strong> · <strong>RMF 2026</strong> (DOF 28-12-2025)</div>`+items.map(s=>`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:14px;margin-bottom:10px"><div style="display:flex;align-items:center;gap:9px;margin-bottom:10px"><span class="badge ${s.cls}">${s.tag}</span><span style="font-size:13px;font-weight:500">${s.t}</span></div><ul style="list-style:none;display:flex;flex-direction:column;gap:5px">${s.p.map(p=>`<li style="font-size:12px;color:var(--text2);display:flex;gap:7px"><span style="color:var(--accent)">›</span>${p}</li>`).join('')}</ul></div>`).join('');
