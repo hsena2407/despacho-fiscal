@@ -334,9 +334,10 @@ body{background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt}
   </nav>
   <div style="padding:12px 18px;border-top:1px solid #0d1526">
     <div id="sb-user" style="font-size:11px;color:#64748b;margin-bottom:8px;font-family:var(--mono)"></div>
-    <button class="btn btn-sm" onclick="cerrarSesion()" style="width:100%;background:rgba(255,255,255,.06);color:#94a3b8;border-color:#2d3748;font-size:11px">
-      ⎋ Cerrar sesión
-    </button>
+    <div style="display:flex;gap:5px">
+      <button class="btn btn-sm" onclick="openCambiarPass()" style="flex:1;background:rgba(255,255,255,.06);color:#94a3b8;border-color:#2d3748;font-size:10px" title="Cambiar contraseña">🔑</button>
+      <button class="btn btn-sm" onclick="cerrarSesion()" style="flex:1;background:rgba(255,255,255,.06);color:#94a3b8;border-color:#2d3748;font-size:10px">⎋ Salir</button>
+    </div>
   </div>
 </aside>
 
@@ -402,6 +403,14 @@ body{background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt}
         <label style="display:block;margin-bottom:7px;font-size:12px;font-weight:500;color:var(--text2)">Mes</label>
         <div class="mes-grid" id="mes-grid"></div>
       </div>
+      <!-- Tabs: carga por mes vs carga masiva -->
+      <div style="display:flex;gap:0;margin-bottom:12px;border-bottom:2px solid var(--border)">
+        <button class="tab-res active" id="tab-mes-btn" onclick="switchCargaMode('mes')">📅 Carga por mes</button>
+        <button class="tab-res" id="tab-anio-btn" onclick="switchCargaMode('anio')">📦 Carga masiva del año</button>
+      </div>
+
+      <!-- MODO: carga por mes -->
+      <div id="carga-mes-mode">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px">
         <!-- EMITIDOS -->
         <div>
@@ -426,6 +435,41 @@ body{background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt}
           </div>
           <div id="xml-chips-r" class="xml-chips" style="display:none;margin-top:8px"></div>
           <div id="xml-cnt-r" style="display:none;margin-top:6px;font-size:12px;font-family:var(--mono);color:var(--warn)"></div>
+        </div>
+      </div>
+      </div>
+
+      <!-- MODO: carga masiva del año -->
+      <div id="carga-anio-mode" style="display:none">
+        <div class="alert a-info" style="margin-bottom:12px">
+          💡 Sube <strong>todos los XML del año</strong> (emitidos y recibidos) de una sola vez. La app los separa automáticamente por fecha y los guarda en la nube. Después solo selecciona el mes y da clic en <strong>Calcular</strong>.
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <label style="display:block;font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px;font-family:var(--mono)">↑ TODOS LOS XML EMITIDOS DEL AÑO</label>
+            <div class="xml-drop" onclick="document.getElementById('xml-inp-ae').click()" ondragover="dOv(event,'xml-drop-e')" ondrop="dDropAE(event)">
+              <div style="font-size:22px;margin-bottom:5px">📦</div>
+              <h3>Arrastra todos los XML emitidos</h3>
+              <p>Enero a Diciembre — la app los separa por mes</p>
+              <input type="file" id="xml-inp-ae" accept=".xml" multiple onchange="handleXMLAnioEmit(event)">
+            </div>
+            <div id="xml-cnt-ae" style="display:none;margin-top:6px;font-size:12px;font-family:var(--mono);color:var(--accent)"></div>
+          </div>
+          <div>
+            <label style="display:block;font-size:12px;font-weight:600;color:var(--warn);margin-bottom:6px;font-family:var(--mono)">↓ TODOS LOS XML RECIBIDOS DEL AÑO</label>
+            <div class="xml-drop" onclick="document.getElementById('xml-inp-ar').click()" ondragover="dOv(event,'xml-drop-r')" ondrop="dDropAR(event)" style="border-color:rgba(230,126,34,.4)">
+              <div style="font-size:22px;margin-bottom:5px">📦</div>
+              <h3>Arrastra todos los XML recibidos</h3>
+              <p>Enero a Diciembre — la app los separa por mes</p>
+              <input type="file" id="xml-inp-ar" accept=".xml" multiple onchange="handleXMLAnioRecib(event)">
+            </div>
+            <div id="xml-cnt-ar" style="display:none;margin-top:6px;font-size:12px;font-family:var(--mono);color:var(--warn)"></div>
+          </div>
+        </div>
+        <div id="anio-progress" style="display:none;margin-top:12px">
+          <div class="sec-title">XML cargados por mes</div>
+          <div id="anio-progress-grid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:6px"></div>
+          <button class="btn btn-primary" onclick="guardarTodosXMLsAnio()" style="margin-top:12px">☁ Guardar todos en la nube</button>
         </div>
       </div>
       <div style="margin-top:10px;display:flex;gap:8px">
@@ -456,6 +500,32 @@ body{background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt}
   <div class="content">
     <div class="alert a-info" style="margin-bottom:14px">Solo el administrador puede crear usuarios y asignar clientes a auxiliares.</div>
     <div id="usuarios-list"></div>
+  </div>
+</div>
+
+<!-- CAMBIAR CONTRASEÑA MODAL -->
+<div class="overlay" id="m-cambpass">
+  <div class="modal" style="width:380px">
+    <div class="mh"><h2>Cambiar contraseña</h2><button class="mclose" onclick="closeM('m-cambpass')">×</button></div>
+    <div class="mc">
+      <div class="fg" style="margin-bottom:10px">
+        <label>Contraseña actual</label>
+        <input id="cp-actual" type="password" placeholder="••••••••">
+      </div>
+      <div class="fg" style="margin-bottom:10px">
+        <label>Nueva contraseña</label>
+        <input id="cp-nueva" type="password" placeholder="••••••••">
+      </div>
+      <div class="fg">
+        <label>Confirmar nueva contraseña</label>
+        <input id="cp-confirma" type="password" placeholder="••••••••">
+      </div>
+      <div id="cp-err" style="color:var(--danger);font-size:12px;margin-top:8px;display:none"></div>
+    </div>
+    <div class="mf">
+      <button class="btn" onclick="closeM('m-cambpass')">Cancelar</button>
+      <button class="btn btn-primary" onclick="cambiarPassword()">Guardar</button>
+    </div>
   </div>
 </div>
 
@@ -760,7 +830,12 @@ window.renderCli = function(){
 };
 
 function verCli(idx){
-  detIdx=idx;const c=window._clientes[idx];const rs=regs(c);
+  // Ir directo a procesar sin mostrar modal
+  detIdx=idx;
+  irProcesar();
+  return;
+  // (modal deshabilitado — acceso directo)
+  const c=window._clientes[idx];const rs=regs(c);
   document.getElementById('det-tit').textContent=c.nombre;
   const mh=window._historial.filter(h=>h.rfc===c.rfc).sort((a,b)=>b.anio-a.anio||b.mes-a.mes);
   document.getElementById('det-body').innerHTML=`
@@ -793,9 +868,22 @@ function delCli(){
 
 function irProcesar(){
   closeM('m-det');
+  const navItems=document.querySelectorAll('.nav-item');
+  // Encontrar el nav item de Procesar mes
+  let procesoNav=null;
+  navItems.forEach(n=>{ if(n.textContent.trim().startsWith('Procesar')) procesoNav=n; });
   document.getElementById('sel-cli').value=window._clientes[detIdx].rfc;
   onCliChange();
-  goPanel('proceso',document.querySelectorAll('.nav-item')[1]);
+  goPanel('proceso', procesoNav);
+  // Auto-seleccionar el mes más reciente no calculado
+  const anio=parseInt(document.getElementById('sel-anio').value);
+  const reg=regActivo||(regs(window._clientes[detIdx])[0]?.code);
+  const mesesCalc=window._historial.filter(h=>h.rfc===window._clientes[detIdx].rfc&&h.anio===anio&&h.rc===reg).map(h=>h.mes);
+  const mesActual=new Date().getMonth()+1;
+  // Buscar primer mes pendiente desde el actual hacia atrás
+  for(let m=mesActual;m>=1;m--){
+    if(!mesesCalc.includes(m)){selMes(m);break;}
+  }
 }
 
 // ── NUEVO CLIENTE ─────────────────────────────────────
@@ -900,8 +988,10 @@ function renderMesGrid(){
   const ok=window._historial.filter(h=>h.rfc===cliActivo.rfc&&h.anio===anio&&h.rc===reg).map(h=>h.mes);
   document.getElementById('mes-grid').innerHTML=MS.map((m,i)=>{
     const n=i+1,isOk=ok.includes(n);
-    return`<div class="mes-btn ${isOk?'ok':''} ${mesActivo===n?'active':''}" onclick="selMes(${n})" title="${isOk?'Ya calculado — haz clic y carga XML para recalcular':m}">
-      ${m}${isOk?'<span style="display:block;font-size:8px;color:var(--accent)">✓</span>':''}
+    const h=window._historial.find(x=>x.rfc===cliActivo.rfc&&x.anio===anio&&x.rc===reg&&x.mes===n);
+    const recalcs=h?.recalculos||0;
+    return`<div class="mes-btn ${isOk?'ok':''} ${mesActivo===n?'active':''}" onclick="selMes(${n})" title="${isOk?`Calculado${recalcs>0?' — '+recalcs+' recálculo'+(recalcs>1?'s':''):''}`:m}">
+      ${m}${isOk?`<span style="display:block;font-size:8px;color:var(--accent)">✓${recalcs>0?'<sup style="font-size:7px">×'+(recalcs+1)+'</sup>':''}</span>`:''}
     </div>`;
   }).join('');
 
@@ -1014,6 +1104,133 @@ async function autoSaveXMLs(tipo){
     await window.dbSaveXMLs(cliActivo.rfc,mesActivo,parseInt(document.getElementById('sel-anio').value),tipo,arr);
     toast('☁ XML '+tipo.toUpperCase()+' guardados en la nube');
   }catch(e){console.warn('No se pudieron guardar XML:',e);}
+}
+
+// ── CARGA MASIVA DEL AÑO ─────────────────────────────────────────────────
+let xmlAnioEmit = {}; // {mes: [{name, text}]}
+let xmlAnioRecib = {};
+
+function switchCargaMode(modo){
+  document.getElementById('carga-mes-mode').style.display = modo==='mes'?'block':'none';
+  document.getElementById('carga-anio-mode').style.display = modo==='anio'?'block':'none';
+  document.getElementById('tab-mes-btn').classList.toggle('active', modo==='mes');
+  document.getElementById('tab-anio-btn').classList.toggle('active', modo==='anio');
+}
+
+function getMonthFromXML(text){
+  // Extraer mes de la fecha del CFDI
+  const fechaMatch = text.match(/Fecha="(\d{4})-(\d{2})-(\d{2})/);
+  if(fechaMatch) return parseInt(fechaMatch[2]);
+  // Para complementos de pago, usar FechaPago
+  const pagMatch = text.match(/FechaPago="(\d{4})-(\d{2})-(\d{2})/);
+  if(pagMatch) return parseInt(pagMatch[2]);
+  return null;
+}
+
+function dDropAE(e){e.preventDefault();loadXMLAnioEmit([...e.dataTransfer.files].filter(f=>f.name.toLowerCase().endsWith('.xml')));}
+function dDropAR(e){e.preventDefault();loadXMLAnioRecib([...e.dataTransfer.files].filter(f=>f.name.toLowerCase().endsWith('.xml')));}
+function handleXMLAnioEmit(e){loadXMLAnioEmit([...e.target.files]);}
+function handleXMLAnioRecib(e){loadXMLAnioRecib([...e.target.files]);}
+
+function loadXMLAnioEmit(files){
+  let p=files.length; if(!p)return;
+  files.forEach(f=>{
+    const r=new FileReader();
+    r.onload=e=>{
+      const text=e.target.result;
+      const tipo=detectarTipoXML(text);
+      if(tipo==='recibido'){
+        toast('⚠ '+f.name.substring(0,22)+' es gasto — ponlo en recibidos','err');
+        if(--p===0) renderAnioProgress();
+        return;
+      }
+      const mes=getMonthFromXML(text);
+      if(mes){
+        if(!xmlAnioEmit[mes]) xmlAnioEmit[mes]=[];
+        if(!xmlAnioEmit[mes].find(x=>x.name===f.name))
+          xmlAnioEmit[mes].push({name:f.name,text});
+      }
+      if(--p===0) renderAnioProgress();
+    };
+    r.readAsText(f,'UTF-8');
+  });
+}
+
+function loadXMLAnioRecib(files){
+  let p=files.length; if(!p)return;
+  files.forEach(f=>{
+    const r=new FileReader();
+    r.onload=e=>{
+      const text=e.target.result;
+      const tipo=detectarTipoXML(text);
+      if(tipo==='emitido'){
+        toast('⚠ '+f.name.substring(0,22)+' es ingreso — ponlo en emitidos','err');
+        if(--p===0) renderAnioProgress();
+        return;
+      }
+      const mes=getMonthFromXML(text);
+      if(mes){
+        if(!xmlAnioRecib[mes]) xmlAnioRecib[mes]=[];
+        if(!xmlAnioRecib[mes].find(x=>x.name===f.name))
+          xmlAnioRecib[mes].push({name:f.name,text});
+      }
+      if(--p===0) renderAnioProgress();
+    };
+    r.readAsText(f,'UTF-8');
+  });
+}
+
+function renderAnioProgress(){
+  const grid=document.getElementById('anio-progress-grid');
+  if(!grid)return;
+  document.getElementById('anio-progress').style.display='block';
+  const cntE=Object.values(xmlAnioEmit).reduce((s,a)=>s+a.length,0);
+  const cntR=Object.values(xmlAnioRecib).reduce((s,a)=>s+a.length,0);
+  document.getElementById('xml-cnt-ae').style.display='block';
+  document.getElementById('xml-cnt-ae').textContent=cntE+' XML emitidos cargados ('+Object.keys(xmlAnioEmit).length+' meses)';
+  document.getElementById('xml-cnt-ar').style.display='block';
+  document.getElementById('xml-cnt-ar').textContent=cntR+' XML recibidos cargados ('+Object.keys(xmlAnioRecib).length+' meses)';
+
+  grid.innerHTML = MS.map((m,i)=>{
+    const mes=i+1;
+    const e=xmlAnioEmit[mes]?.length||0;
+    const r=xmlAnioRecib[mes]?.length||0;
+    const hasData=e>0||r>0;
+    return `<div style="background:${hasData?'rgba(0,102,204,.08)':'var(--surface2)'};border:1px solid ${hasData?'var(--accent)':'var(--border)'};border-radius:var(--r);padding:6px 8px;text-align:center;cursor:${hasData?'pointer':'default'}"
+      onclick="${hasData?`usarXMLsMes(${mes})`:''}">
+      <div style="font-family:var(--mono);font-size:11px;font-weight:600;color:${hasData?'var(--accent)':'var(--text3)'}">${m}</div>
+      ${hasData?`<div style="font-size:9px;color:var(--text2);margin-top:2px">↑${e} ↓${r}</div>`:'<div style="font-size:9px;color:var(--text3)">sin XML</div>'}
+    </div>`;
+  }).join('');
+}
+
+function usarXMLsMes(mes){
+  // Cargar los XML de ese mes en las zonas normales y cambiar a modo mes
+  if(!cliActivo) return;
+  xmlEmitidos = xmlAnioEmit[mes]||[];
+  xmlRecibidos = xmlAnioRecib[mes]||[];
+  selMes(mes);
+  switchCargaMode('mes');
+  renderXMLChips('e');
+  renderXMLChips('r');
+  toast('✓ XML de '+MF[mes-1]+' cargados — da clic en Calcular');
+  document.getElementById('btns-proceso').style.display='flex';
+}
+
+async function guardarTodosXMLsAnio(){
+  if(!cliActivo){toast('Selecciona un cliente primero','err');return;}
+  const anio=parseInt(document.getElementById('sel-anio').value);
+  let guardados=0;
+  const meses=new Set([...Object.keys(xmlAnioEmit),...Object.keys(xmlAnioRecib)].map(Number));
+  for(const mes of meses){
+    try{
+      if(xmlAnioEmit[mes]?.length) await window.dbSaveXMLs(cliActivo.rfc,mes,anio,'e',xmlAnioEmit[mes]);
+      if(xmlAnioRecib[mes]?.length) await window.dbSaveXMLs(cliActivo.rfc,mes,anio,'r',xmlAnioRecib[mes]);
+      guardados++;
+    }catch(e){console.warn('Error guardando mes '+mes,e);}
+  }
+  toast('☁ '+guardados+' meses guardados en la nube');
+  renderMesGrid();
 }
 async function cargarXMLsGuardados(){
   if(!cliActivo||!mesActivo)return;
@@ -1210,11 +1427,21 @@ async function procesar(){
   r.mes=mesActivo;r.anio=anio;r.cpOtroMes=cpOtroMes;r.ivaAcredSAT=ivaAcredSAT;r.ivaAcredComb=ivaAcredComb;r.gastosDedComb=gastosDedComb;
   const entry={rfc,nom:cliActivo.nombre,mes:mesActivo,anio,rc:reg,rl:r.rl,isr:r.isrCargo||0,iva:r.ivaP||0,fecha:new Date().toISOString()};
   try{
+    // Verificar si ya existe para incrementar contador de recálculos
+    const existing=window._historial.find(h=>h.rfc===rfc&&h.mes===mesActivo&&h.anio===anio&&h.rc===reg);
+    if(existing){
+      entry.recalculos=(existing.recalculos||0)+1;
+      entry.histRecalculos=[...(existing.histRecalculos||[]),{fecha:new Date().toISOString(),isr:entry.isr,iva:entry.iva}];
+    } else {
+      entry.recalculos=0;
+      entry.histRecalculos=[];
+    }
     await window.dbSaveHist(entry);
     const ei=window._historial.findIndex(h=>h.rfc===rfc&&h.mes===mesActivo&&h.anio===anio&&h.rc===reg);
     if(ei>=0)window._historial[ei]=entry;else window._historial.push(entry);
     document.getElementById('nb-hist').textContent=window._historial.length;
-    toast('Guardado en la nube ☁️');
+    const msg=entry.recalculos>0?`Recalculado (×${entry.recalculos+1}) ☁️`:'Guardado en la nube ☁️';
+    toast(msg);
   }catch(e){toast('Error al guardar historial','err');}
   lastRes={r,c:cliActivo};renderRes(r);
   document.getElementById('btns-acc').innerHTML=`<button class="btn btn-sm" onclick="window.print()">🖨 Imprimir</button>`;
@@ -1536,6 +1763,7 @@ window.renderHist = function(){
            onclick="verHistorialMes('${h.rfc}',${h.mes},${h.anio},'${h.rc}')">
         <div style="font-family:var(--mono);font-size:11px;color:var(--accent);min-width:90px">${MF[h.mes-1]} ${h.anio}</div>
         <span class="badge ${regBadge}" style="font-size:9px">${regLabel}</span>
+        ${h.recalculos>0?`<span style="font-size:9px;background:rgba(255,179,71,.15);color:var(--warn);padding:1px 5px;border-radius:3px;font-family:var(--mono)">×${h.recalculos+1}</span>`:''}
         <div style="flex:1"></div>
         <div style="font-family:var(--mono);font-size:11px;text-align:right">
           <span style="color:var(--danger)">ISR ${fmt(h.isr)}</span>
@@ -1666,13 +1894,47 @@ async function guardarUsuario(){
 }
 
 async function eliminarUsuario(user){
-  if(!confirm('¿Eliminar usuario '+user+'?')) return;
+  if(user===sesionActiva?.user){toast('No puedes eliminar tu propio usuario','err');return;}
+  if(!confirm('¿Eliminar usuario "'+user+'"? Esta acción no se puede deshacer.')) return;
   try{
     const {doc,deleteDoc}=await import("https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js");
     await deleteDoc(doc(window._db,'usuarios',user));
     toast('Usuario eliminado');
     loadUsuarios();
   }catch(e){toast('Error: '+e.message,'err');}
+}
+
+function openCambiarPass(){
+  ['cp-actual','cp-nueva','cp-confirma'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('cp-err').style.display='none';
+  document.getElementById('m-cambpass').classList.add('open');
+}
+
+async function cambiarPassword(){
+  const actual=document.getElementById('cp-actual').value;
+  const nueva=document.getElementById('cp-nueva').value;
+  const confirma=document.getElementById('cp-confirma').value;
+  const errEl=document.getElementById('cp-err');
+  errEl.style.display='none';
+
+  if(!actual||!nueva||!confirma){errEl.textContent='Todos los campos son obligatorios';errEl.style.display='block';return;}
+  if(actual!==sesionActiva?.pass){errEl.textContent='La contraseña actual es incorrecta';errEl.style.display='block';return;}
+  if(nueva.length<6){errEl.textContent='La nueva contraseña debe tener al menos 6 caracteres';errEl.style.display='block';return;}
+  if(nueva!==confirma){errEl.textContent='Las contraseñas no coinciden';errEl.style.display='block';return;}
+
+  try{
+    const {doc,setDoc}=await import("https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js");
+    const updUser={...sesionActiva, pass:nueva};
+    await setDoc(doc(window._db,'usuarios',sesionActiva.user), updUser);
+    sesionActiva.pass=nueva;
+    closeM('m-cambpass');
+    toast('✓ Contraseña actualizada');
+  }catch(e){
+    // Si falla Firebase (usuario default), actualizar en memoria
+    sesionActiva.pass=nueva;
+    closeM('m-cambpass');
+    toast('✓ Contraseña actualizada para esta sesión');
+  }
 }
 
 function renderLegal(){
