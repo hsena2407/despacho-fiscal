@@ -1683,10 +1683,18 @@ function parseXML(text,name){ // text = raw XML string
       if(pagoEl){
         formaPagoP=pagoEl.getAttribute('FormaDePagoP')||'';
         fechaPagoP=pagoEl.getAttribute('FechaPago')||'';
+        // Monto total pagado (base para ingresos cobrados)
+        sub=parseFloat(pagoEl.getAttribute('Monto')||0);
       }
       doc.querySelectorAll('TrasladoP').forEach(t=>{
         if(t.getAttribute('ImpuestoP')==='002') ivaImporteP+=parseFloat(t.getAttribute('ImporteP')||0);
       });
+      // Base sin IVA del complemento
+      const totales=doc.querySelector('Totales');
+      if(totales){
+        const baseIVA=parseFloat(totales.getAttribute('TotalTrasladosBaseIVA16')||0);
+        if(baseIVA>0) sub=baseIVA; // usar base sin IVA como subtotal
+      }
     }
     // Detectar si es CFDI de combustible (ClaveProdServ gasolina/diesel)
     const claveProd = doc.querySelector('Concepto')?.getAttribute('ClaveProdServ')||'';
@@ -1705,18 +1713,70 @@ async function procesar(){
   const reg=regActivo||(regs(cliActivo)[0]?.code);if(!reg)return;
   const anio=parseInt(document.getElementById('sel-anio').value);
   const rfc=cliActivo.rfc;
-  // Parsear emitidos y recibidos por separado — no filtrar por RFC, ya los separó el usuario
-  const emit=xmlEmitidos.map(f=>parseXML(f.text,f.name)).filter(x=>!x.err&&x.tipo==='I');
+  // Parsear emitidos y recibidos por separado
+  const todosEmit=xmlEmitidos.map(f=>parseXML(f.text,f.name)).filter(x=>!x.err);
   const recib=xmlRecibidos.map(f=>parseXML(f.text,f.name)).filter(x=>!x.err);
   const noms=recib.filter(x=>x.esNom||x.tipo==='N');
+
+  // ── REGLA INGRESOS COBRADOS (igual que SAT) ──────────────────────────
+  // 1. CFDI tipo I PUE → cobrado en el mes de su fecha
+  // 2. CFDI tipo I PPD → solo cobrado si existe complemento de pago (tipo P)
+  //    emitido por el cliente cuya FechaPago corresponde al mes procesado
+  // 3. Complemento de pago (tipo P) emitido POR el cliente con FechaPago del mes
+  //    → cuenta como ingreso cobrado (el valor pagado sin impuestos)
+  
+  // Buscar complementos de pago emitidos POR el cliente (en xmlEmitidos tipo P)
+  const compPagoEmit = todosEmit.filter(x=>x.tipo==='P');
+  
+  // Función: ¿el CFDI PPD tiene complemento de pago en este mes?
+  function ppd_tiene_cp(cfdi){
+    // Buscar CP del mismo emisor con FechaPago en el mes procesado
+    return compPagoEmit.some(cp=>{
+      if(!cp.fechaPagoP) return false;
+      const fpMes = new Date(cp.fechaPagoP).getMonth()+1;
+      const fpAnio = new Date(cp.fechaPagoP).getFullYear();
+      return fpMes===mesActivo && fpAnio===anio;
+    });
+  }
+
+  // Filtrar ingresos según reglas
+  const emit = todosEmit.filter(x=>{
+    if(x.tipo==='P'){
+      // Complemento de pago emitido por el cliente: FechaPago debe ser del mes
+      if(!x.fechaPagoP) return false;
+      const fpMes=new Date(x.fechaPagoP).getMonth()+1;
+      const fpAnio=new Date(x.fechaPagoP).getFullYear();
+      return fpMes===mesActivo && fpAnio===anio;
+    }
+    if(x.tipo==='I'){
+      if(x.metodo==='PUE') return true;  // Cobrado de inmediato
+      if(x.metodo==='PPD') return ppd_tiene_cp(x); // Solo si hay CP del mes
+      return true;
+    }
+    return false;
+  });
+
+  // Separar para mostrar en tabla: PUE normales y CPs de ingresos
+  const emitPPDsinCP = todosEmit.filter(x=>x.tipo==='I'&&x.metodo==='PPD'&&!ppd_tiene_cp(x));
   // ingTotal = todos los ingresos del mes (base ISR RESICO Art.113-E — sin distinción gravado/exento IVA)
   // ingGravIVA = solo los gravados para IVA | ingEx = exentos IVA
   let ingTotal=0,ingGravIVA=0,ingEx=0,ivaTrasI=0,ivaRetI=0,isrRetI=0;
   emit.forEach(x=>{
-    ingTotal+=x.sub;           // base ISR RESICO: TODOS los ingresos Art.113-E
-    ingGravIVA+=x.sub-x.ivaEx; // base IVA: solo gravados
-    ingEx+=x.ivaEx;
-    ivaTrasI+=x.ivaTras;ivaRetI+=x.ivaRet;isrRetI+=x.isrRet;
+    if(x.tipo==='P'){
+      // Complemento de pago emitido: usar ivaImporteP para IVA, sub para base
+      ingTotal+=x.sub;
+      ingGravIVA+=x.sub;
+      ivaTrasI+=x.ivaImporteP||0;
+      ivaRetI+=x.ivaRet||0;
+      isrRetI+=x.isrRet||0;
+    } else {
+      ingTotal+=x.sub;
+      ingGravIVA+=x.sub-x.ivaEx;
+      ingEx+=x.ivaEx;
+      ivaTrasI+=x.ivaTras;
+      ivaRetI+=x.ivaRet;
+      isrRetI+=x.isrRet;
+    }
   });
   let ingGrav=ingTotal; // alias para compatibilidad con el resto del código
   // REGLAS DEDUCCIÓN RESICO — según lógica del SAT (declaración precargada):
@@ -1796,7 +1856,7 @@ async function procesar(){
     r={reg:'606',rl:'Arrendamiento',ingGrav,ded,base,isrCalc,isrRetI,isrCargo,ivaTrasI,ivaRetI,ivaAcred,ivaP,gastoBase,emit,recib,gastosDeducibles,gastosNoDed};
   }
   if(cliActivo.rSal&&noms.length)r.salInfo={total:noms.reduce((s,x)=>s+x.sub,0),isrRet:noms.reduce((s,x)=>s+x.isrRet,0),n:noms.length};
-  r.mes=mesActivo;r.anio=anio;r.cpOtroMes=cpOtroMes;r.ivaAcredSAT=ivaAcredSAT;r.ivaAcredComb=ivaAcredComb;r.gastosDedComb=gastosDedComb;
+  r.mes=mesActivo;r.anio=anio;r.cpOtroMes=cpOtroMes;r.emitPPDsinCP=emitPPDsinCP||[];r.ivaAcredSAT=ivaAcredSAT;r.ivaAcredComb=ivaAcredComb;r.gastosDedComb=gastosDedComb;
   const entry={rfc,nom:cliActivo.nombre,mes:mesActivo,anio,rc:reg,rl:r.rl,isr:r.isrCargo||0,iva:r.ivaP||0,fecha:new Date().toISOString()};
   try{
     // Verificar si ya existe para incrementar contador de recálculos
@@ -1920,6 +1980,21 @@ function renderRes(r){
     <td class="num">${fmt(r.emit.reduce((s,x)=>s+x.isrRet,0))}</td>
     <td class="num">${fmt(r.emit.reduce((s,x)=>s+x.total,0))}</td>
   </tr></tfoot></table></div></div>`;
+
+  // Mostrar PPD no cobrados como sección informativa
+  if(r.emitPPDsinCP && r.emitPPDsinCP.length>0){
+    h+=`<div style="margin-top:8px;padding:10px 14px;background:rgba(255,179,71,.06);border:1px solid rgba(255,179,71,.25);border-radius:var(--r)">
+      <div style="font-size:11px;font-weight:600;color:var(--warn);margin-bottom:6px">⚠ PPD pendientes de cobro — NO incluidos en ingresos del mes (${r.emitPPDsinCP.length})</div>
+      <div style="font-size:11px;color:var(--text2)">Estos CFDI tienen método PPD y no tienen complemento de pago con FechaPago en ${MF[r.mes-1]}. Se incluirán en el mes en que se reciba el pago.</div>
+      <table class="det-table" style="margin-top:8px"><thead><tr><th>Fecha</th><th>RFC Receptor</th><th>Concepto</th><th class="num">Subtotal</th><th class="num">IVA</th></tr></thead>
+      <tbody>${r.emitPPDsinCP.map(x=>`<tr style="opacity:.6">
+        <td style="font-size:10px">${x.fecha?.substring(0,10)||'—'}</td>
+        <td><div style="font-family:var(--mono);font-size:10px">${x.rfcR}</div><div style="font-size:10px;color:var(--text2)">${x.nomR.substring(0,25)}</div></td>
+        <td style="font-size:10px;color:var(--text2)">${x.conceptos.substring(0,45)}</td>
+        <td class="num">${fmt(x.sub)}</td><td class="num">${fmt(x.ivaTras)}</td>
+      </tr>`).join('')}</tbody></table>
+    </div>`;
+  }
 }
   if(r.recib.length){
   const gd=r.gastosDeducibles||r.recib;
