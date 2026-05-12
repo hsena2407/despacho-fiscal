@@ -795,19 +795,21 @@ async function doLogin(){
   const err = document.getElementById('login-err');
   err.style.display='none';
 
-  // Buscar en Firestore primero
-  let found = null;
-  try{
-    const snap = await window._db ? 
-      (await import("https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js")).then(async({getDoc,doc})=>{
-        return await getDoc(doc(window._db,'usuarios',user));
-      }) : null;
-    if(snap && snap.exists && snap.exists()) found = snap.data();
-  }catch(e){}
+  // 1. Buscar primero en usuarios hardcodeados (siempre funciona)
+  let found = USUARIOS_DEFAULT.find(u=>u.user===user && u.pass===pass);
 
-  // Fallback a usuarios default
-  if(!found) found = USUARIOS_DEFAULT.find(u=>u.user===user);
+  // 2. Si no encontró, intentar Firestore
+  if(!found){
+    try{
+      if(window._db){
+        const {getDoc,doc} = await import("https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js");
+        const snap = await getDoc(doc(window._db,'usuarios',user));
+        if(snap.exists()) found = snap.data();
+      }
+    }catch(e){ console.warn('Firebase login error:',e); }
+  }
 
+  // 3. Validar contraseña (para usuarios de Firestore)
   if(!found || found.pass !== pass){
     err.style.display='block';
     document.getElementById('login-pass').value='';
