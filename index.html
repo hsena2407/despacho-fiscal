@@ -75,7 +75,11 @@ window.dbLoad = async () => {
   window.renderCli();
   window.renderHist();
   document.getElementById('loading').style.display = 'none';
-  document.getElementById('app').style.display = 'flex';
+  // Mostrar app y pantalla principal
+  const appEl = document.getElementById('app');
+  appEl.style.display = 'flex';
+  appEl.style.flexDirection = 'column';
+  appEl.style.minHeight = '100vh';
   document.getElementById('screen-home').style.display = 'block';
   document.getElementById('screen-client').style.display = 'none';
   document.getElementById('screen-dashboard').style.display = 'none';
@@ -87,18 +91,8 @@ window.addEventListener('load', () => {
   // dbLoad se llama desde doLogin()
   document.getElementById('loading').style.display='none';
   // Restaurar último panel activo
-  const lastPanel = localStorage.getItem('fd_panel');
-  if(lastPanel) {
-    setTimeout(()=>{
-      const navItems = document.querySelectorAll('.nav-item');
-      const panels = ['clientes','proceso','historial','legal'];
-      const idx = panels.indexOf(lastPanel);
-      if(idx >= 0) goPanel(lastPanel, navItems[idx]);
-    }, 800);
-  }
-  // Mostrar usuario (por ahora solo hostname/despacho)
-  const user = localStorage.getItem('fd_user') || 'Administrador';
-  document.getElementById('sb-user').textContent = user;
+  // No restaurar panel automáticamente al cargar — se hace post-login
+  // (el usuario debe autenticarse primero)
 });
 </script>
 <style>
@@ -822,7 +816,14 @@ async function doLogin(){
 
   sesionActiva = found;
   document.getElementById('login-screen').style.display='none';
-  document.getElementById('sb-user').textContent = (found.nombre||found.user) + (found.rol==='admin'?' (Admin)':' (Aux)');
+  // Actualizar topbar
+  const sbUser = document.getElementById('sb-user');
+  if(sbUser) sbUser.textContent = (found.nombre||found.user) + (found.rol==='admin'?' (Admin)':' (Aux.)');
+  const sbAvatar = document.getElementById('topbar-avatar');
+  if(sbAvatar){
+    const initials = (found.nombre||found.user).split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+    sbAvatar.textContent = initials;
+  }
   
   // Mostrar dashboard/usuarios solo para admin
   if(found.rol==='admin'){
