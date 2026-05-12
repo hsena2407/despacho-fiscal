@@ -964,72 +964,43 @@ function regs(c){const r=[];if(c.r626)r.push({code:'626',l:'RESICO',cls:'b-resic
 
 window.renderCli = function(){
   const clientes=window._clientes;
-  // Actualizar counter si existe (compatibilidad)
   const nbCli=document.getElementById('nb-cli'); if(nbCli) nbCli.textContent=clientes.length;
-  
-  // Renderizar en el selector de clientes (pantalla home)
+
   const homeList=document.getElementById('cli-list-home');
   const homeEmpty=document.getElementById('cli-empty-home');
   if(!homeList) return;
-  if(!clientes.length){homeList.innerHTML='';if(homeEmpty)homeEmpty.style.display='block';return;}
-  if(homeEmpty)homeEmpty.style.display='none';
+
+  if(!clientes.length){
+    homeList.innerHTML='';
+    if(homeEmpty) homeEmpty.style.display='block';
+    return;
+  }
+  if(homeEmpty) homeEmpty.style.display='none';
+
   const anioActual=new Date().getFullYear();
-  homeList.innerHTML=clientes.map((c,i)=>{
+  homeList.innerHTML=clientes.map(function(c,i){
     const rs=regs(c);
-    const histCli=window._historial.filter(h=>h.rfc===c.rfc&&h.anio===anioActual);
+    const histCli=window._historial.filter(function(h){return h.rfc===c.rfc&&h.anio===anioActual;});
     const mesesCalc=histCli.length;
     const mesActual=new Date().getMonth()+1;
-    const calcMesActual=histCli.find(h=>h.mes===mesActual);
+    const calcMesActual=histCli.find(function(h){return h.mes===mesActual;});
     const statusColor=calcMesActual?'var(--accent)':mesesCalc>0?'var(--warn)':'var(--text3)';
-    const statusLabel=calcMesActual?'✓ Al día':mesesCalc>0?`${mesesCalc} mes${mesesCalc>1?'es':''}`:'Sin calcular';
-    const fav=i<3; // primeros 3 son favoritos (lógica simple)
-    return \`<div class="cli-list-item" onclick="abrirClienteMeses(\${i})">
-      <span class="cli-star \${fav?'':'empty'}">★</span>
-      <div style="flex:1;min-width:0">
-        <div class="cli-rfc">\${c.rfc}</div>
-        <div class="cli-name-big">\${c.nombre}</div>
-        <div class="cli-meta-row">
-          \${rs.map(r=>\`<span class="badge \${r.cls}">\${r.l}</span>\`).join('')}
-          \${c.iva==='no'?'<span class="badge b-noiva">SIN IVA</span>':''}
-          \${c.act?\`<span>· \${c.act}</span>\`:''}
-        </div>
-      </div>
-      <div style="text-align:right;flex-shrink:0;min-width:100px">
-        <div style="font-size:12px;font-weight:600;color:\${statusColor};margin-bottom:4px">\${statusLabel}</div>
-        <button class="btn-abrir" onclick="event.stopPropagation();abrirClienteMeses(\${i})">Abrir →</button>
-      </div>
-    </div>\`;
-  }).join('');
-  
-  // También mantener compatibilidad con clients-grid si existe
-  const g=document.getElementById('clients-grid');
-  if(g) g.innerHTML='';
-  const g=document.getElementById('clients-grid'),e=document.getElementById('clients-empty');
-  if(!clientes.length){g.style.display='none';e.style.display='block';return;}
-  g.style.display='grid';e.style.display='none';
-  const anioActual = new Date().getFullYear();
-  g.innerHTML=clientes.map((c,i)=>{
-    const rs=regs(c);
-    const histCli=window._historial.filter(h=>h.rfc===c.rfc&&h.anio===anioActual);
-    const mesesCalc=histCli.length;
-    const mesActual=new Date().getMonth()+1;
-    const calcMesActual=histCli.find(h=>h.mes===mesActual);
-    const tieneXMLs=true; // siempre mostramos opción calcular
-    return`<div class="client-card" onclick="abrirClienteMeses(${i})" style="cursor:pointer">
-      <div class="client-rfc">${c.rfc}</div>
-      <div class="client-name">${c.nombre}</div>
-      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">${rs.map(r=>`<span class="badge ${r.cls}">${r.l}</span>`).join('')}${c.iva==='no'?'<span class="badge b-noiva">SIN IVA</span>':''}${c.iva==='mixto'?'<span class="badge b-mixto">IVA MIXTO</span>':''}</div>
-      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">
-        ${['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'].map((m,i)=>{
-          const h=histCli.find(x=>x.mes===i+1);
-          return`<span style="font-size:9px;font-family:var(--mono);padding:2px 4px;border-radius:3px;background:${h?'rgba(0,102,204,.12)':'var(--surface2)'};color:${h?'var(--accent)':'var(--text3)'}">${m}${h?'✓':''}</span>`;
-        }).join('')}
-      </div>
-      <div class="client-meta">
-        <span>${c.act||'—'}</span>
-        <span style="margin-left:auto;color:var(--accent);font-weight:500">${mesesCalc} mes${mesesCalc!==1?'es':''} calculados</span>
-      </div>
-    </div>`;
+    const statusLabel=calcMesActual?'Al dia ('+mesActual+'m)':mesesCalc>0?(mesesCalc+' mes'+(mesesCalc>1?'es':'')):'Sin calcular';
+    const badgesHTML=rs.map(function(r){return '<span class="badge '+r.cls+'">'+r.l+'</span>';}).join('')
+      +(c.iva==='no'?'<span class="badge b-noiva">SIN IVA</span>':'')
+      +(c.act?'<span style="font-size:11px;color:var(--text3)"> · '+c.act+'</span>':'');
+    return '<div class="cli-list-item" onclick="abrirClienteMeses('+i+')">'
+      +'<span class="cli-star">&#9733;</span>'
+      +'<div style="flex:1;min-width:0">'
+        +'<div class="cli-rfc">'+c.rfc+'</div>'
+        +'<div class="cli-name-big">'+c.nombre+'</div>'
+        +'<div class="cli-meta-row">'+badgesHTML+'</div>'
+      +'</div>'
+      +'<div style="text-align:right;flex-shrink:0;min-width:100px">'
+        +'<div style="font-size:12px;font-weight:600;color:'+statusColor+';margin-bottom:4px">'+statusLabel+'</div>'
+        +'<button class="btn-abrir" onclick="event.stopPropagation();abrirClienteMeses('+i+')">Abrir &rarr;</button>'
+      +'</div>'
+    +'</div>';
   }).join('');
 };
 
