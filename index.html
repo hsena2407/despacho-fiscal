@@ -122,9 +122,11 @@ window.dbLoad = async () => {
   appEl.style.display = 'flex';
   appEl.style.flexDirection = 'column';
   appEl.style.minHeight = '100vh';
-  document.getElementById('screen-home').style.display = 'block';
+  document.getElementById('screen-home').style.display = 'none';
   document.getElementById('screen-client').style.display = 'none';
   document.getElementById('screen-dashboard').style.display = 'none';
+  if (typeof window.goCierre === 'function') window.goCierre();
+  else document.getElementById('screen-home').style.display = 'block';
 };
 
 // Session persistence usando localStorage para estado de UI (no datos sensibles)
@@ -328,6 +330,55 @@ input[type="checkbox"]{width:auto;cursor:pointer}
 .despacho-tab:hover{color:var(--text)}
 .despacho-tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
 .toast.ok{border-left:3px solid var(--accent)}.toast.err{border-left:3px solid var(--danger)}
+
+/* ── NUEVA INTERFAZ (paso 1): menú superior y Cierre del mes ── */
+.fd-top{background:#0F2D5C;color:#fff;display:flex;flex-wrap:wrap;align-items:center;gap:20px;padding:0 24px;min-height:56px;flex-shrink:0}
+.fd-brand{display:flex;align-items:baseline;gap:6px;cursor:pointer}
+.fd-brand b{font-size:18px;font-weight:700;letter-spacing:-.01em}
+.fd-brand span{font-family:var(--mono);font-size:11px;font-weight:600;color:#7FD9BE}
+.fd-nav{display:flex;flex-wrap:wrap;gap:2px}
+.fd-nav button{background:none;border:none;border-bottom:3px solid transparent;color:#C9D4E6;font-family:var(--sans);font-size:14px;padding:17px 12px 14px;cursor:pointer}
+.fd-nav button:hover{color:#fff}
+.fd-nav button.on{color:#fff;font-weight:600;border-bottom-color:#7FD9BE}
+.fd-user{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:12px;color:#DCE5F2;padding:8px 0}
+.fd-user .tb-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#DCE5F2;padding:5px 10px;border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--sans)}
+#screen-cierre{flex:1;background:#F4F6F9;color:#14213A}
+.fc-main{max-width:1440px;margin:0 auto;padding:26px 28px 48px;box-sizing:border-box}
+.fc-eyebrow{font-family:var(--mono);font-size:12px;font-weight:600;color:#12806A;letter-spacing:.06em;margin-bottom:6px}
+.fc-h1{margin:0;font-size:28px;font-weight:700;letter-spacing:-.02em}
+.fc-sub{margin:6px 0 0;font-size:14px;color:#4F5D75}
+.fc-row{display:flex;flex-wrap:wrap;gap:20px;align-items:stretch;margin-bottom:20px}
+.fc-card{background:#fff;border:1px solid #E1E6EE;border-radius:12px;padding:18px 20px}
+.fc-card h2{margin:0;font-size:16px;font-weight:600}
+.fc-meta{font-size:12px;color:#4F5D75}
+.fc-al{display:flex;gap:12px;padding:11px 0;border-top:1px solid #EDF0F5;cursor:pointer}
+.fc-tag{flex:none;font-family:var(--mono);font-size:10px;font-weight:600;border-radius:4px;padding:3px 6px;height:fit-content}
+.fc-t-bad{background:#FDECEA;color:#B42318}.fc-t-warn{background:#FFF4E0;color:#9A5B00}.fc-t-info{background:#EEF2F8;color:#34435C}
+.fc-al .t{font-size:13px;font-weight:600}.fc-al .d{font-size:12px;color:#4F5D75;margin-top:2px;line-height:1.4}
+.fc-date{display:flex;gap:14px;align-items:center;padding:9px 0;border-top:1px solid #EDF0F5}
+.fc-cal{flex:none;width:48px;text-align:center;border:1px solid #DCE2EC;border-radius:8px;padding:4px 0}
+.fc-cal .n{font-family:var(--mono);font-size:17px;font-weight:600}.fc-cal .m{font-size:10px;color:#4F5D75;text-transform:uppercase}
+.fc-cal.urg{border-color:#E8A33D;background:#FFF8EC}
+.fc-bar{display:flex;height:10px;border-radius:999px;overflow:hidden;gap:3px;margin:14px 0 16px;background:#EAEEF4}
+.fc-stages{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.fc-dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;vertical-align:-1px}
+.fc-num{font-family:var(--mono);font-size:24px;font-weight:600;margin-top:2px}
+.fc-board{display:grid;grid-template-columns:repeat(4,minmax(240px,1fr));gap:12px;min-width:980px}
+.fc-col{background:#EAEEF4;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.fc-colh{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;padding:2px 4px 4px}
+.fc-cli{display:block;text-align:left;width:100%;font-family:var(--sans);color:#14213A;background:#fff;border:1px solid #DCE2EC;border-radius:10px;padding:12px;cursor:pointer}
+.fc-cli:hover{border-color:#9FB0CC}
+.fc-cli .rfc{font-family:var(--mono);font-size:11px;font-weight:600;color:#1F5FBF}
+.fc-cli .nm{font-size:13px;font-weight:600;line-height:1.3;margin:4px 0 8px}
+.fc-cli .rg{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.fc-cli .rg i{font-style:normal;font-family:var(--mono);font-size:10px;font-weight:600;background:#EEF2F8;color:#34435C;border-radius:4px;padding:2px 6px}
+.fc-cli .tx{font-size:11px;color:#34435C}
+.fc-cli .nt{font-size:12px;line-height:1.35;padding-top:8px;border-top:1px solid #EDF0F5}
+.fc-empty{font-size:12px;color:#66758C;padding:6px 4px}
+.fc-btn{font-family:var(--sans);font-size:14px;font-weight:600;min-height:42px;padding:0 16px;border-radius:8px;border:1px solid #C8D0DF;background:#fff;color:#14213A;cursor:pointer}
+.fc-btn.pri{background:#0F2D5C;border-color:#0F2D5C;color:#fff}
+.fc-sel{font-family:var(--sans);font-size:13px;min-height:36px;border:1px solid #C8D0DF;border-radius:8px;padding:0 10px;background:#fff;color:#14213A;width:auto}
+
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-thumb{background:#c8d0df;border-radius:3px}
 
@@ -393,26 +444,27 @@ body{background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt}
 
 <div id="app" style="display:none;flex-direction:column;min-height:100vh">
 
-<!-- TOPBAR GLOBAL -->
-<header class="topbar-global">
-  <div style="display:flex;align-items:center;gap:0">
-    <span class="topbar-logo">FISCODESK MX</span>
-    <span id="topbar-breadcrumb" style="display:none;font-size:13px;color:rgba(255,255,255,.55);margin-left:14px;padding-left:14px;border-left:1px solid rgba(255,255,255,.2)"></span>
-  </div>
-  <div class="topbar-user">
-    <button id="btn-topbar-dash" onclick="goDespachoDash()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.85);padding:5px 12px;border-radius:var(--r);font-size:11px;cursor:pointer;font-family:var(--sans);display:flex;align-items:center;gap:6px">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-      Dashboard del despacho
-    </button>
-    <button onclick="goHome()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.85);padding:5px 12px;border-radius:var(--r);font-size:11px;cursor:pointer;font-family:var(--sans)">Clientes</button>
-    <div style="text-align:right">
-      <div id="sb-user" style="font-size:12px;font-weight:500"></div>
-    </div>
+<!-- TOPBAR GLOBAL (nueva interfaz) -->
+<header class="fd-top">
+  <div class="fd-brand" onclick="goCierre()"><b>FiscoDesk</b><span>MX</span></div>
+  <nav class="fd-nav" aria-label="Principal">
+    <button type="button" id="nav-cierre" class="on" onclick="goCierre()">Cierre del mes</button>
+    <button type="button" id="nav-clientes" onclick="goHome()">Clientes</button>
+    <button type="button" id="nav-calendario" onclick="goDespachoDash()">Calendario y obligaciones</button>
+  </nav>
+  <span id="topbar-breadcrumb" style="display:none;font-size:13px;color:rgba(255,255,255,.6);padding-left:14px;border-left:1px solid rgba(255,255,255,.2)"></span>
+  <div class="fd-user">
+    <span id="sb-user" style="font-weight:500"></span>
     <div class="topbar-avatar" id="topbar-avatar">LH</div>
-    <button onclick="openCambiarPass()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.7);padding:4px 10px;border-radius:var(--r);font-size:11px;cursor:pointer;font-family:var(--sans)" title="Cambiar contraseña">🔑</button>
-    <button onclick="cerrarSesion()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.7);padding:4px 10px;border-radius:var(--r);font-size:11px;cursor:pointer;font-family:var(--sans)">Salir</button>
+    <button type="button" class="tb-btn" onclick="openCambiarPass()" title="Cambiar contraseña">🔑</button>
+    <button type="button" class="tb-btn" onclick="cerrarSesion()">Salir</button>
   </div>
 </header>
+
+<!-- PANTALLA: CIERRE DEL MES (nuevo inicio) -->
+<div id="screen-cierre" style="display:none">
+  <main class="fc-main" id="cierre-body"></main>
+</div>
 
 <!-- PANTALLA INICIO: SELECTOR DE CLIENTES -->
 <div id="screen-home" style="flex:1;background:var(--bg)">
@@ -1362,6 +1414,8 @@ function filtrarClientes(q){
 }
 
 function abrirClienteMeses(idx){
+  if(window.fdOcultarCierre) fdOcultarCierre();
+  fdNav('clientes');
   detIdx=idx;
   cliActivo=window._clientes[idx];
   // Mostrar pantalla del cliente
@@ -3132,6 +3186,8 @@ function generarExcelDesdePanel(modo){
 // para que la navegación funcione correctamente, incluyendo el nuevo
 // Dashboard del despacho.
 window.goHome = function(){
+  if(window.fdOcultarCierre) fdOcultarCierre();
+  fdNav('clientes');
   document.getElementById('screen-home').style.display='block';
   document.getElementById('screen-client').style.display='none';
   document.getElementById('screen-dashboard').style.display='none';
@@ -3141,6 +3197,7 @@ window.goHome = function(){
 };
 
 window.goClientePanel = function(id){
+  if(window.fdOcultarCierre) fdOcultarCierre();
   document.querySelectorAll('.client-panel').forEach(p=>p.classList.remove('active'));
   const target=document.getElementById(id);
   if(target) target.classList.add('active');
@@ -3162,8 +3219,214 @@ window.goClientePanel = function(id){
   if(id==='usuarios-panel'&&typeof loadUsuarios==='function') loadUsuarios();
 };
 
+// ── NUEVA INTERFAZ · PASO 1: CIERRE DEL MES ────────────────────────────
+// Etapas por cliente para el periodo elegido, con datos reales de Firebase:
+//   Descargar  → no hay XML del mes en la nube (colección xmls)
+//   Calcular   → hay XML pero no hay cálculo guardado (colección historial)
+//   Presentar  → calculado, sin obligación marcada como presentada en el mes de vencimiento
+//   Terminado  → obligación con estatus "presentada" que vence en el mes siguiente al periodo
+window._fdPeriodo = null;
+window._fdXmlCache = {};
+
+function fdNav(clave){
+  ['cierre','clientes','calendario'].forEach(k=>{
+    const b=document.getElementById('nav-'+k); if(b) b.classList.toggle('on', k===clave);
+  });
+}
+window.fdNav = fdNav;
+window.fdOcultarCierre = function(){
+  const sc=document.getElementById('screen-cierre'); if(sc) sc.style.display='none';
+};
+
+function fdPeriodoDefault(){
+  const h=new Date(); let m=h.getMonth(), a=h.getFullYear(); // mes anterior
+  if(m===0){ m=12; a--; }
+  return {anio:a, mes:m};
+}
+function fdISO(a,m,d){ return `${a}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+function fdSigMes(a,m){ return m===12 ? {anio:a+1, mes:1} : {anio:a, mes:m+1}; }
+function fdEsc(t){ return String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+window.goCierre = function(){
+  ['screen-home','screen-client','screen-dashboard'].forEach(id=>{const e=document.getElementById(id); if(e) e.style.display='none';});
+  const bc=document.getElementById('topbar-breadcrumb'); if(bc) bc.style.display='none';
+  document.getElementById('screen-cierre').style.display='block';
+  fdNav('cierre');
+  if(!window._fdPeriodo) window._fdPeriodo=fdPeriodoDefault();
+  renderCierre();
+  fdCargarXmlPeriodo().then(renderCierre);
+};
+
+function fdCambiarPeriodo(valor){
+  const [a,m]=valor.split('-').map(Number);
+  window._fdPeriodo={anio:a, mes:m};
+  renderCierre();
+  fdCargarXmlPeriodo().then(renderCierre);
+}
+
+async function fdCargarXmlPeriodo(){
+  const {anio,mes}=window._fdPeriodo;
+  const pend=[];
+  for(const c of window._clientes){
+    const k=`${c.rfc}_${anio}_${mes}`;
+    if(window._fdXmlCache[k]!==undefined) continue;
+    pend.push((async()=>{
+      let e=0,r=0;
+      try{ const d=await window.dbGetXML(k+'_e'); e=d?.archivos?.length||0; }catch(_){}
+      try{ const d=await window.dbGetXML(k+'_r'); r=d?.archivos?.length||0; }catch(_){}
+      window._fdXmlCache[k]={e,r};
+    })());
+  }
+  await Promise.all(pend);
+}
+
+function fdEtapaCliente(c, anio, mes){
+  const sig=fdSigMes(anio,mes);
+  const prefSig=`${sig.anio}-${String(sig.mes).padStart(2,'0')}`;
+  const x=window._fdXmlCache[`${c.rfc}_${anio}_${mes}`];
+  const calc=window._historial.filter(h=>h.rfc===c.rfc&&h.anio===anio&&h.mes===mes);
+  const pres=(window._obligaciones||[]).find(o=>o.rfc===c.rfc&&o.estatus==='presentada'&&String(o.fechaVencimiento||'').startsWith(prefSig));
+  if(pres) return {etapa:'term', nota:`Presentada${pres.fechaPresentacion?' el '+fmtFechaCorta(pres.fechaPresentacion):''}${pres.numOperacion?' · op. '+pres.numOperacion:''}`, tono:'ok'};
+  if(calc.length){
+    const isr=calc.reduce((s,h)=>s+(h.isr||0),0), iva=calc.reduce((s,h)=>s+(h.iva||0),0);
+    return {etapa:'pres', nota:`ISR ${fmt(isr)}${c.iva==='no'?'':' · IVA '+fmt(iva)}`, tono:'muted'};
+  }
+  if(x===undefined) return {etapa:'desc', nota:'Revisando XML en la nube…', tono:'muted'};
+  if(x.e||x.r) return {etapa:'calc', nota:`XML en la nube · ↑${x.e} emitidos · ↓${x.r} recibidos`, tono:'muted'};
+  return {etapa:'desc', nota:'Sin XML del mes: correr el Conector', tono:'warn'};
+}
+
+function fdAbrirCliente(rfc, etapa){
+  const {anio,mes}=window._fdPeriodo;
+  const idx=window._clientes.findIndex(c=>c.rfc===rfc);
+  if(idx<0) return;
+  if(etapa==='calc'||etapa==='pres'){ irProcesarDesde(rfc, mes, anio); }
+  else { abrirClienteMeses(idx); }
+}
+
+function fdAtencion(){
+  const items=[];
+  (window._obligaciones||[]).filter(o=>o.estatus!=='presentada').forEach(o=>{
+    const d=diasRestantes(o.fechaVencimiento); if(d===null) return;
+    if(d<0) items.push({sev:0,tag:'VENCIDA',cls:'bad',t:`${o.tipo} · ${o.cliente||o.rfc}`,d:`Venció el ${fmtFechaCorta(o.fechaVencimiento)}`,ord:d});
+    else if(d<=7) items.push({sev:1,tag:'OBLIG.',cls:'warn',t:`${o.tipo} · ${o.cliente||o.rfc}`,d:`Vence ${d===0?'hoy':'en '+d+' día(s)'} · ${fmtFechaCorta(o.fechaVencimiento)}`,ord:d});
+  });
+  (window._efirmaCsd||[]).forEach(x=>{
+    const d=diasRestantes(x.fechaVencimiento); if(d===null||d>30) return;
+    const nom=x.tipo==='csd'?'CSD':'E.FIRMA';
+    items.push({sev:d<0?0:2,tag:nom,cls:d<0?'bad':'warn',t:x.cliente||x.rfc,d:d<0?`Venció el ${fmtFechaCorta(x.fechaVencimiento)}`:`Vence en ${d} día(s) · ${fmtFechaCorta(x.fechaVencimiento)}`,ord:d});
+  });
+  (window._avisos||[]).filter(a=>a.estatus!=='atendido').forEach(a=>{
+    const d=diasRestantes(a.fechaLimite);
+    const cli=(window._clientes.find(c=>c.rfc===a.rfc)||{}).nombre||a.cliente||a.rfc||'';
+    items.push({sev:d!==null&&d<0?0:3,tag:'AVISO',cls:d!==null&&d<0?'bad':'info',t:`${a.descripcion||'Aviso pendiente'}${cli?' · '+cli:''}`,d:a.fechaLimite?`Límite ${fmtFechaCorta(a.fechaLimite)}`:'Sin fecha límite',ord:d??999});
+  });
+  return items.sort((a,b)=>a.sev-b.sev||a.ord-b.ord);
+}
+
+function fdVencimientos(etapas){
+  const {anio,mes}=window._fdPeriodo;
+  const sig=fdSigMes(anio,mes);
+  const lista=[];
+  const pendientes=etapas.filter(e=>e.etapa!=='term').length;
+  lista.push({fecha:fdISO(sig.anio,sig.mes,17),t:`Pagos provisionales de ${MF[mes-1].toLowerCase()}`,d:`ISR e IVA · ${pendientes} cliente(s) sin presentar`});
+  const grupos={};
+  (window._obligaciones||[]).filter(o=>o.estatus!=='presentada').forEach(o=>{
+    const d=diasRestantes(o.fechaVencimiento); if(d===null||d<0||d>14) return;
+    const k=o.fechaVencimiento+'|'+o.tipo; (grupos[k]=grupos[k]||{fecha:o.fechaVencimiento,t:o.tipo,n:0}).n++;
+  });
+  Object.values(grupos).forEach(g=>lista.push({fecha:g.fecha,t:g.t,d:`${g.n} cliente(s) pendiente(s)`}));
+  const vistos=new Set();
+  return lista.filter(v=>{const k=v.fecha+v.t; if(vistos.has(k)) return false; vistos.add(k); return true;})
+              .sort((a,b)=>a.fecha.localeCompare(b.fecha)).slice(0,5);
+}
+
+function renderCierre(){
+  const cont=document.getElementById('cierre-body'); if(!cont) return;
+  const {anio,mes}=window._fdPeriodo;
+  const sig=fdSigMes(anio,mes);
+  const vence=fdISO(sig.anio,sig.mes,17);
+  const dv=diasRestantes(vence);
+  const venceTxt=new Date(vence+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  const clientes=[...window._clientes].sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  const etapas=clientes.map(c=>({c,...fdEtapaCliente(c,anio,mes)}));
+  const COL=[
+    {k:'desc',n:'Descargar',color:'#8A97AD'},
+    {k:'calc',n:'Calcular',color:'#4A86D9'},
+    {k:'pres',n:'Presentar',color:'#7C6BD6'},
+    {k:'term',n:'Terminado',color:'#1D9E75'},
+  ];
+  const cuenta=k=>etapas.filter(e=>e.etapa===k).length;
+  const total=etapas.length, term=cuenta('term');
+  const pct=total?Math.round(term*100/total):0;
+  const tonos={bad:'#B42318',warn:'#9A5B00',ok:'#12806A',muted:'#4F5D75'};
+
+  // Selector de periodo: últimos 12 meses
+  let opts=''; let a=new Date().getFullYear(), m=new Date().getMonth()+1;
+  for(let i=0;i<12;i++){ m--; if(m===0){m=12;a--;} opts+=`<option value="${a}-${m}" ${a===anio&&m===mes?'selected':''}>${MF[m-1]} ${a}</option>`; }
+
+  const aten=fdAtencion();
+  const atenHTML=aten.length? aten.slice(0,6).map(i=>`<div class="fc-al" onclick="goDespachoDash()"><span class="fc-tag fc-t-${i.cls}">${fdEsc(i.tag)}</span><div><div class="t">${fdEsc(i.t)}</div><div class="d">${fdEsc(i.d)}</div></div></div>`).join('')
+    + (aten.length>6?`<div class="fc-meta" style="padding:10px 0;border-top:1px solid #EDF0F5">+ ${aten.length-6} más en Calendario y obligaciones</div>`:'')
+    : `<div class="fc-meta" style="padding:12px 0;border-top:1px solid #EDF0F5">Sin pendientes urgentes. Las alertas salen de obligaciones, e.firma/CSD y avisos capturados.</div>`;
+
+  const venc=fdVencimientos(etapas);
+  const vencHTML=venc.map(v=>{const d=new Date(v.fecha+'T12:00:00');const dd=diasRestantes(v.fecha);
+    return `<div class="fc-date"><div class="fc-cal ${dd!==null&&dd<=5?'urg':''}"><div class="n">${d.getDate()}</div><div class="m">${MS[d.getMonth()]}</div></div><div><div style="font-size:13px;font-weight:600">${fdEsc(v.t)}</div><div class="fc-meta">${fdEsc(v.d)}</div></div></div>`;}).join('');
+
+  const colsHTML=COL.map(col=>{
+    const cards=etapas.filter(e=>e.etapa===col.k);
+    return `<div class="fc-col"><div class="fc-colh"><span><span class="fc-dot" style="background:${col.color}"></span>${col.n}</span><span style="font-family:var(--mono);font-size:12px;color:#4F5D75">${cards.length}</span></div>
+      ${cards.length?cards.map(e=>{const c=e.c;const rs=regs(c).map(r=>`<i>${r.code==='sal'?'SAL':r.code}</i>`).join('');
+        const tx='ISR'+(c.iva==='no'?'':' · IVA');
+        return `<button type="button" class="fc-cli" onclick="fdAbrirCliente('${c.rfc}','${e.etapa}')"><div class="rfc">${fdEsc(c.rfc)}</div><div class="nm">${fdEsc(c.nombre)}</div><div class="rg">${rs}<span class="tx">${tx}</span></div><div class="nt" style="color:${tonos[e.tono]}">${fdEsc(e.nota)}</div></button>`;}).join('')
+        :'<div class="fc-empty">Sin clientes en esta etapa</div>'}
+    </div>`;}).join('');
+
+  cont.innerHTML=`
+  <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px;margin-bottom:20px">
+    <div style="flex:1 1 420px">
+      <div class="fc-eyebrow">PERIODO ${MF[mes-1].toUpperCase()} ${anio}</div>
+      <h1 class="fc-h1">Cierre de ${MF[mes-1].toLowerCase()}</h1>
+      <p class="fc-sub">Los pagos provisionales vencen el ${venceTxt} · ${dv>0?'faltan '+dv+' día(s)':dv===0?'vencen hoy':'vencieron hace '+(-dv)+' día(s)'}</p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <label class="fc-meta" style="display:flex;gap:6px;align-items:center">Periodo <select class="fc-sel" onchange="fdCambiarPeriodo(this.value)">${opts}</select></label>
+      <button type="button" class="fc-btn" onclick="goHome()">Ver clientes</button>
+      <button type="button" class="fc-btn pri" onclick="window._fdXmlCache={};fdCargarXmlPeriodo().then(renderCierre)">↻ Actualizar</button>
+    </div>
+  </div>
+
+  <div class="fc-row">
+    <section class="fc-card" style="flex:999 1 560px;min-width:0;padding-bottom:8px">
+      <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:6px"><h2>Requiere atención</h2><span class="fc-meta">${aten.length} asunto(s)</span></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));column-gap:24px">${atenHTML}</div>
+    </section>
+    <section class="fc-card" style="flex:1 1 340px;min-width:0;display:flex;flex-direction:column">
+      <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:4px"><h2>Próximos vencimientos</h2><span class="fc-meta">14 días</span></div>
+      <div style="flex:1">${vencHTML}</div>
+      <button type="button" onclick="goDespachoDash()" style="background:none;border:none;border-top:1px solid #EDF0F5;padding:10px 0 0;text-align:left;color:#1F5FBF;font-weight:600;font-size:13px;cursor:pointer;font-family:var(--sans)">Ver calendario completo →</button>
+    </section>
+  </div>
+
+  <section class="fc-card" style="margin-bottom:20px">
+    <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px"><div style="font-size:15px;font-weight:600">${total} cliente(s) · ${term} terminado(s)</div><div class="fc-meta" style="font-size:13px">Avance del despacho: ${pct}%</div></div>
+    <div class="fc-bar" aria-hidden="true">${COL.map(c=>{const n=cuenta(c.k);return n?`<div style="flex:${n};background:${c.color}"></div>`:'';}).join('')}</div>
+    <div class="fc-stages">${COL.map((c,i)=>`<div><div class="fc-meta" style="font-size:13px"><span class="fc-dot" style="background:${c.color}"></span>${i+1}. ${c.n}</div><div class="fc-num">${cuenta(c.k)}</div></div>`).join('')}</div>
+  </section>
+
+  <section>
+    <h2 style="margin:0 0 12px;font-size:17px;font-weight:600">Clientes por etapa</h2>
+    <div style="overflow-x:auto;padding-bottom:6px"><div class="fc-board">${colsHTML}</div></div>
+    <p class="fc-meta" style="margin-top:14px">La etapa "Terminado" se marca cuando registras la obligación como <b>Presentada</b> (con número de operación) en Obligaciones del cliente.</p>
+  </section>`;
+}
+window.renderCierre = renderCierre;
+
 // ── DASHBOARD DEL DESPACHO ─────────────────────────────────────────────
 function goDespachoDash(){
+  if(window.fdOcultarCierre) fdOcultarCierre();
+  fdNav('calendario');
   document.getElementById('screen-home').style.display='none';
   document.getElementById('screen-client').style.display='none';
   document.getElementById('screen-dashboard').style.display='flex';
