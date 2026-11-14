@@ -3130,7 +3130,7 @@ function fkComparativoIva(c,anio){
     <tbody>${filas}</tbody><tfoot><tr><td>Total</td><td>${fmt(tCob)}</td><td></td><td></td><td>${t16<0?fmt(-t16)+' a favor':fmt(t16)}</td><td>${t7<0?fmt(-t7)+' a favor':fmt(t7)}</td></tr></tfoot></table></div>
     <div class="fk-ver">${veredicto}</div>`:''}
     ${faltan.length?`<div class="fc-meta">Sin desglose de IVA guardado: ${faltan.join(', ')}. Abre el mes y usa “Cargar XML y recalcular” para incluirlo.</div>`:''}
-    <ul class="fk-notas">${avisoRet}<li>La opción se ejerce por todo 2027 y no puede cambiarse en el ejercicio. Aviso dentro de los 30 días siguientes al primer cobro del año.</li><li>Si el cliente vende a tasa 0%, la fracción aplica el 7% sobre todo lo gravado: revisar antes de optar.</li><li>Texto tomado de la LIF 2027 (DOF 13-nov-2026) según publicaciones especializadas. Faltan las reglas del SAT para 2027.</li></ul>
+    <ul class="fk-notas">${avisoRet}<li>Una vez ejercida no puede variarse durante el ejercicio. Aviso dentro de los 30 días siguientes al primer cobro del año. Pago mensual definitivo en los plazos del art. 5o.-D LIVA (día 17).</li><li>Si el cliente vende a tasa 0%, la fracción aplica el 7% sobre todo lo gravado: revisar antes de optar.</li><li>Verificado contra el texto de la LIF 2027 (DOF 13-nov-2026). Solo por meses completos; cesa si deja de tributar en RESICO o si sus importaciones rebasan el límite de ingresos. Faltan las reglas del SAT (aviso y saldo por retenciones).</li></ul>
   </div>`;
 }
 
