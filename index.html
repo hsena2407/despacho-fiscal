@@ -377,6 +377,39 @@ input[type="checkbox"]{width:auto;cursor:pointer}
 .fc-empty{font-size:12px;color:#66758C;padding:6px 4px}
 .fc-btn{font-family:var(--sans);font-size:14px;font-weight:600;min-height:42px;padding:0 16px;border-radius:8px;border:1px solid #C8D0DF;background:#fff;color:#14213A;cursor:pointer}
 .fc-btn.pri{background:#0F2D5C;border-color:#0F2D5C;color:#fff}
+.fk .fk-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:18px;align-items:flex-end;margin-bottom:16px}
+.fk-chain{display:flex;flex-wrap:wrap;align-items:center;gap:10px;background:#fff;border:1px solid #E1E6EE;border-radius:12px;padding:10px 16px}
+.fk-chain div{display:flex;flex-direction:column}.fk-chain span{font-size:11px;color:#66758C;text-transform:uppercase;letter-spacing:.04em}
+.fk-chain b{font-size:13px;font-weight:600}.fk-chain i{font-style:normal;font-family:var(--mono);font-size:10px;background:#EEF2F8;color:#34435C;border-radius:4px;padding:1px 5px}
+.fk-chain em{font-style:normal;color:#9FB0CC}.fk-m{font-size:11px;color:#66758C;font-weight:400}
+.fk-acc{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.fk-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:18px}
+.fk-tile{background:#fff;border:1px solid #E1E6EE;border-left:4px solid #C8D0DF;border-radius:10px;padding:11px 13px}
+.fk-tile .n{font-size:11px;color:#4F5D75;text-transform:uppercase;letter-spacing:.04em}.fk-tile .v{font-size:14px;font-weight:600;margin:3px 0}
+.fk-tile .d{font-size:11px;color:#66758C;line-height:1.35}
+.fk-tile.ok{border-left-color:#1D9E75}.fk-tile.warn{border-left-color:#E8A33D}.fk-tile.bad{border-left-color:#B42318}.fk-tile.bad .v{color:#B42318}
+.fk-grid{display:grid;grid-template-columns:minmax(0,2fr) minmax(280px,1fr);gap:16px;align-items:start}
+@media(max-width:1000px){.fk-grid{grid-template-columns:1fr}}
+.fk-cardh{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.fk-leg{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;margin-bottom:12px}
+.fk-meses{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.fk-mes{border:1px solid #E1E6EE;border-radius:10px;overflow:hidden}
+.fk-mh{display:flex;justify-content:space-between;width:100%;border:none;background:#F5F7FA;padding:7px 10px;cursor:pointer;font-family:var(--sans);color:#14213A}
+.fk-mh b{font-size:13px}.fk-mh span{font-family:var(--mono);font-size:10px;color:#4F5D75}
+.fk-ob{display:flex;flex-wrap:wrap;gap:4px;padding:7px 8px}
+.fk-ob span,.fk-leg span{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-family:var(--mono);font-weight:600;border-radius:4px;padding:2px 5px}
+.fk-ob em,.fk-leg em{font-style:normal}
+.s-ok{background:#E3F5EE;color:#12806A}.s-calc{background:#EEF2F8;color:#1F5FBF}.s-pend{background:#FDECEA;color:#B42318}.s-fut{background:#F5F7FA;color:#8A97AD}.s-na{display:none!important}
+.fk-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px;border-top:1px solid #EDF0F5;padding-top:12px}
+.fk-kpis span{display:block;font-size:11px;color:#66758C}.fk-kpis b{font-family:var(--mono);font-size:14px}
+.fk-conf{display:flex;flex-direction:column;gap:10px}.fk-conf label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#4F5D75}
+.fk-conf .fc-sel{width:100%;box-sizing:border-box}.fk-conf .fk-chk{flex-direction:row;align-items:center;gap:8px;color:#14213A}
+.fk-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fk-cmp{margin-top:16px}.fk-tab{width:100%;border-collapse:collapse;font-size:12px}
+.fk-tab th{text-align:right;font-weight:600;color:#4F5D75;border-bottom:1px solid #E1E6EE;padding:6px 8px}.fk-tab th:first-child,.fk-tab td:first-child{text-align:left}
+.fk-tab td{text-align:right;font-family:var(--mono);padding:6px 8px;border-bottom:1px solid #EDF0F5}.fk-tab tfoot td{font-weight:700;border-bottom:none}
+.fk-fav{color:#12806A}.fk-ver{margin:12px 0 6px;font-size:14px;font-weight:600}
+.fk-notas{margin:8px 0 0;padding-left:18px;font-size:12px;color:#4F5D75;line-height:1.5}
 .fc-sel{font-family:var(--sans);font-size:13px;min-height:36px;border:1px solid #C8D0DF;border-radius:8px;padding:0 10px;background:#fff;color:#14213A;width:auto}
 
 ::-webkit-scrollbar{width:4px;height:4px}
@@ -558,29 +591,7 @@ body{background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt}
 
       <!-- PANEL: DASHBOARD DEL CLIENTE -->
       <div id="dash-panel" class="client-panel active">
-        <div class="ph">
-          <div><div class="ph-title" id="dash-cli-nombre"></div><div class="ph-sub" id="dash-cli-sub"></div></div>
-          <div style="display:flex;gap:8px">
-            <select id="dash-anio-cli" style="width:90px" onchange="renderClienteDashboard()"><option>2026</option><option>2025</option><option>2024</option></select>
-          </div>
-        </div>
-        <div class="content">
-          <div class="dash-kpi-grid" id="dash-kpis"></div>
-          <div class="dash-two">
-            <div class="dash-card">
-              <div class="dash-card-t">Estado por mes</div>
-              <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px" id="dash-mes-grid"></div>
-            </div>
-            <div class="dash-card">
-              <div class="dash-card-t">Alertas y pendientes</div>
-              <div id="dash-alertas"></div>
-            </div>
-          </div>
-          <div class="dash-card" style="margin-bottom:14px">
-            <div class="dash-card-t">Accesos rápidos</div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap" id="dash-accesos"></div>
-          </div>
-        </div>
+        <div class="fc-main fk" id="ficha-body"></div>
       </div>
 
       <!-- PANEL: CFDI (lista de CFDI del cliente) -->
@@ -2441,7 +2452,9 @@ async function procesar(){
   }
   if(cliActivo.rSal&&noms.length)r.salInfo={total:noms.reduce((s,x)=>s+x.sub,0),isrRet:noms.reduce((s,x)=>s+x.isrRet,0),n:noms.length};
   r.mes=mesActivo;r.anio=anio;r.cpOtroMes=cpOtroMes;r.emitPPDsinCP=emitPPDsinCP||[];r.ivaAcredSAT=ivaAcredSAT;r.ivaAcredComb=ivaAcredComb;r.gastosDedComb=gastosDedComb;
-  const entry={rfc,nom:cliActivo.nombre,mes:mesActivo,anio,rc:reg,rl:r.rl,isr:r.isrCargo||0,iva:r.ivaP||0,fecha:new Date().toISOString()};
+  const entry={rfc,nom:cliActivo.nombre,mes:mesActivo,anio,rc:reg,rl:r.rl,isr:r.isrCargo||0,iva:r.ivaP||0,fecha:new Date().toISOString(),
+    ingGrav:+(r.ingGrav||0).toFixed(2),ingGravIVA:+((r.ingGravIVA??r.ingGrav)||0).toFixed(2),ingEx:+(r.ingEx||0).toFixed(2),
+    ivaTrasI:+(r.ivaTrasI||0).toFixed(2),ivaRetI:+(r.ivaRetI||0).toFixed(2),ivaAcred:+((r.ivaPropAcred||r.ivaAcred)||0).toFixed(2),ivaF:+(r.ivaF||0).toFixed(2),isrRetI:+(r.isrRetI||0).toFixed(2)};
   try{
     // Verificar si ya existe para incrementar contador de recálculos
     const existing=window._historial.find(h=>h.rfc===rfc&&h.mes===mesActivo&&h.anio===anio&&h.rc===reg);
@@ -3054,62 +3067,262 @@ async function cambiarPassword(){
 }
 
 function renderLegal(){
-  const items=[{cls:'b-resico',tag:'RESICO',t:'Art. 113-E al 113-J LISR',p:['Cálculo mensual sobre ingresos cobrados con CFDI, sin deducciones (Art.113-E)','Tabla mensual: ≤$25K=1.0% | ≤$50K=1.1% | ≤$83K=1.5% | ≤$208K=2.0% | ≤$3.5M=2.5%','Retención 1.25% por personas morales (Art.113-J LISR)','Declaración anual en abril, tabla anual diferente (Art.113-F)','Puede coexistir con Sueldos y Salarios (Art.113-E último párrafo)','Límite: ingresos anuales ≤ $3,500,000']},{cls:'b-emp',tag:'AE',t:'Art. 100-109 LISR — Actividad Empresarial',p:['Ingresos efectivamente cobrados (Art.102)','Deducciones estrictamente indispensables con CFDI (Art.103)','ISR provisional mensual: tabla Art.96 sobre utilidad (Art.106)','IVA mensual definitivo Art.1o. LIVA']},{cls:'b-arr',tag:'ARR',t:'Art. 114-118 LISR — Arrendamiento',p:['Deducción ciega 35% en lugar de deducciones reales (Art.115 párr.2)','ISR tabla Art.96 por remisión del Art.116','Retención 10% cuando arrendatario es persona moral (Art.116 párr.4)','Pago provisional mensual a más tardar día 17']},{cls:'b-sal',tag:'SAL',t:'Art. 94-96 LISR — Sueldos y Salarios',p:['ISR retenido y enterado por el patrón (Art.96)','Declaración independiente del RESICO o Actividad Empresarial','Declaración anual integra ambas fuentes (Título IV LISR)','CFDI nómina complemento 1.2 acredita el ingreso']},{cls:'b-noiva',tag:'IVA',t:'Art. 1o., 5o., 15 LIVA — IVA',p:['Servicios médicos exentos: Art.15 Fracc.XIV LIVA','Acreditamiento total si 100% gravado: Art.5-V-a','Sin acreditamiento si 100% exento: Art.5-V-b','Actividad mixta: proporción Art.5-V-c','Retención 2/3 IVA cuando receptor es PM: Art.1o-A LIVA']}];
+  const items=[{cls:'b-resico',tag:'RESICO',t:'Art. 113-E al 113-J LISR',p:['Cálculo mensual sobre ingresos cobrados con CFDI, sin deducciones (Art.113-E)','Tabla mensual: ≤$25K=1.0% | ≤$50K=1.1% | ≤$83K=1.5% | ≤$208K=2.0% | ≤$3.5M=2.5%','Retención 1.25% por personas morales (Art.113-J LISR)','Declaración anual en abril, tabla anual diferente (Art.113-F)','Puede coexistir con Sueldos y Salarios (Art.113-E último párrafo)','Límite: ingresos anuales ≤ $3,500,000 en 2026; ≤ $5,000,000 desde 2027 (reforma LISR, DOF 13-nov-2026)','2027: opción de pagar IVA al 7% sobre lo cobrado, sin acreditamiento (Art.25-XVIII LIF 2027)']},{cls:'b-emp',tag:'AE',t:'Art. 100-109 LISR — Actividad Empresarial',p:['Ingresos efectivamente cobrados (Art.102)','Deducciones estrictamente indispensables con CFDI (Art.103)','ISR provisional mensual: tabla Art.96 sobre utilidad (Art.106)','IVA mensual definitivo Art.1o. LIVA']},{cls:'b-arr',tag:'ARR',t:'Art. 114-118 LISR — Arrendamiento',p:['Deducción ciega 35% en lugar de deducciones reales (Art.115 párr.2)','ISR tabla Art.96 por remisión del Art.116','Retención 10% cuando arrendatario es persona moral (Art.116 párr.4)','Pago provisional mensual a más tardar día 17']},{cls:'b-sal',tag:'SAL',t:'Art. 94-96 LISR — Sueldos y Salarios',p:['ISR retenido y enterado por el patrón (Art.96)','Declaración independiente del RESICO o Actividad Empresarial','Declaración anual integra ambas fuentes (Título IV LISR)','CFDI nómina complemento 1.2 acredita el ingreso']},{cls:'b-noiva',tag:'IVA',t:'Art. 1o., 5o., 15 LIVA — IVA',p:['Servicios médicos exentos: Art.15 Fracc.XIV LIVA','Acreditamiento total si 100% gravado: Art.5-V-a','Sin acreditamiento si 100% exento: Art.5-V-b','Actividad mixta: proporción Art.5-V-c','Retención 2/3 IVA cuando receptor es PM: Art.1o-A LIVA']}];
   document.getElementById('legal-body').innerHTML=`<div class="alert a-info" style="margin-bottom:14px">Base legal: <strong>LISR 2026</strong> · <strong>LIVA 2026</strong> · <strong>RMF 2026</strong> (DOF 28-12-2025)</div>`+items.map(s=>`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:14px;margin-bottom:10px"><div style="display:flex;align-items:center;gap:9px;margin-bottom:10px"><span class="badge ${s.cls}">${s.tag}</span><span style="font-size:13px;font-weight:500">${s.t}</span></div><ul style="list-style:none;display:flex;flex-direction:column;gap:5px">${s.p.map(p=>`<li style="font-size:12px;color:var(--text2);display:flex;gap:7px"><span style="color:var(--accent)">›</span>${p}</li>`).join('')}</ul></div>`).join('');
 }
 
-// ── NUEVO: DASHBOARD DEL CLIENTE ─────────────────────────────────────
+// ── NUEVA INTERFAZ · PASO 2: FICHA DEL CLIENTE ─────────────────────────
+// Régimen → impuestos → responsable; recuadros de cumplimiento; 12 meses con
+// palomeo por obligación. Reglas: RMF 2026 (2.8.1.5, 2.8.1.17), art. 28 CFF,
+// art. 33-A RCFF, art. 118-II LISR, art. 32-VIII LIVA, art. 17-K CFF.
+const FK_FORMAS={
+  miscuentas:'Mis Cuentas (aplicativo del SAT)',
+  propia:'Contabilidad propia (sistema del despacho)',
+  ciega:'Sin contabilidad · deducción ciega (art. 118-II LISR)'
+};
+window._fkAnio=null;
+
+function fkFormaSugerida(c){
+  if(c.r612) return 'propia';
+  if(c.r606&&!c.r626) return 'ciega';
+  return 'miscuentas';
+}
+// Límite de ingresos RESICO PF por ejercicio (art. 113-E LISR; reforma DOF 13-nov-2026 vigente 2027)
+const FD_LIMITE_RESICO={2026:3500000,2027:5000000};
+function fdLimiteResico(a){ return FD_LIMITE_RESICO[a] || (a>2027?5000000:3500000); }
+
+function fkTileLimite(c,anio){
+  const ing=window._historial.filter(h=>h.rfc===c.rfc&&h.anio===anio&&h.rc==='626').reduce((s,h)=>s+(h.ingGrav||0),0);
+  const lim=fdLimiteResico(anio), p=lim?ing/lim:0;
+  const sinDato=window._historial.some(h=>h.rfc===c.rfc&&h.anio===anio&&h.rc==='626'&&h.ingGrav===undefined);
+  const d=`${fmt(ing)} de ${fmt(lim)} (${(p*100).toFixed(1)}%)`+(sinDato?' · hay meses sin ingresos guardados: recalcúlalos':'');
+  if(p>=1) return {cls:'bad',v:'Límite rebasado',d:d+' · sale del RESICO desde el mes siguiente (art. 113-E LISR)'};
+  if(p>=0.8) return {cls:'warn',v:'Cerca del límite',d};
+  return {cls:'ok',v:`Límite RESICO ${anio}`,d};
+}
+
+// Comparativo IVA: mecánica normal (16% − retenido − acreditable) vs opción 7% (art. 25-XVIII LIF 2027):
+// 7% sobre contraprestaciones gravadas efectivamente cobradas, menos IVA retenido, sin acreditamiento.
+function fkComparativoIva(c,anio){
+  if(!c.r626||c.iva==='no') return '';
+  const hs=window._historial.filter(h=>h.rfc===c.rfc&&h.anio===anio&&h.rc==='626').sort((a,b)=>a.mes-b.mes);
+  if(!hs.length) return '';
+  let t16=0,t7=0,tCob=0,n=0,faltan=[];
+  const filas=hs.map(h=>{
+    if(h.ivaTrasI===undefined){ faltan.push(MS[h.mes-1]); return ''; }
+    n++;
+    const normal=(h.ivaTrasI||0)-(h.ivaRetI||0)-(h.ivaAcred||0);
+    const siete=0.07*(h.ingGravIVA||0)-(h.ivaRetI||0);
+    t16+=normal; t7+=siete; tCob+=(h.ingGravIVA||0);
+    const f=v=>v<0?`<span class="fk-fav">${fmt(-v)} a favor</span>`:fmt(v);
+    return `<tr><td>${MS[h.mes-1]}</td><td>${fmt(h.ingGravIVA)}</td><td>${fmt(h.ivaAcred)}</td><td>${fmt(h.ivaRetI)}</td><td>${f(normal)}</td><td>${f(siete)}</td></tr>`;
+  }).join('');
+  const pagado=v=>Math.max(0,v);
+  const dif=pagado(t16)-pagado(t7);
+  const veredicto=n===0?'':(dif>0
+    ?`Con los meses calculados, la opción 7% habría pagado ${fmt(dif)} menos de IVA.`
+    :dif<0?`Con los meses calculados, la mecánica normal habría pagado ${fmt(-dif)} menos que la opción 7%.`
+    :'Sin diferencia en el IVA pagado con los meses calculados.');
+  const avisoRet=t7<0?'<li>Las retenciones de IVA superan el 7% de lo cobrado: con la opción 7% habría saldo a favor recurrente. La fracción XVIII solo dice que el retenido se resta; falta regla del SAT sobre qué pasa con ese saldo. El veredicto compara solo lo pagado.</li>':'';
+  return `<div class="fc-card fk-cmp"><div class="fk-cardh"><h2>IVA 2027: mecánica normal vs opción 7%</h2><span class="fc-tag fc-t-info">Art. 25-XVIII LIF 2027</span></div>
+    <div class="fc-meta" style="margin-bottom:8px">Simulación con los meses calculados de ${anio}. 7% × cobrado gravado − IVA retenido, sin acreditamiento. Al cliente se le sigue trasladando 16%.</div>
+    ${n?`<div style="overflow-x:auto"><table class="fk-tab"><thead><tr><th>Mes</th><th>Cobrado gravado</th><th>IVA acreditable</th><th>IVA retenido</th><th>Normal (16%)</th><th>Opción 7%</th></tr></thead>
+    <tbody>${filas}</tbody><tfoot><tr><td>Total</td><td>${fmt(tCob)}</td><td></td><td></td><td>${t16<0?fmt(-t16)+' a favor':fmt(t16)}</td><td>${t7<0?fmt(-t7)+' a favor':fmt(t7)}</td></tr></tfoot></table></div>
+    <div class="fk-ver">${veredicto}</div>`:''}
+    ${faltan.length?`<div class="fc-meta">Sin desglose de IVA guardado: ${faltan.join(', ')}. Abre el mes y usa “Cargar XML y recalcular” para incluirlo.</div>`:''}
+    <ul class="fk-notas">${avisoRet}<li>La opción se ejerce por todo 2027 y no puede cambiarse en el ejercicio. Aviso dentro de los 30 días siguientes al primer cobro del año.</li><li>Si el cliente vende a tasa 0%, la fracción aplica el 7% sobre todo lo gravado: revisar antes de optar.</li><li>Texto tomado de la LIF 2027 (DOF 13-nov-2026) según publicaciones especializadas. Faltan las reglas del SAT para 2027.</li></ul>
+  </div>`;
+}
+
+function fkReglas(c){
+  const forma=c.formaContabilidad||fkFormaSugerida(c);
+  const soloResico=!!c.r626&&!c.r612&&!c.r606;
+  const iva=c.iva!=='no';
+  const r2817=!!c.relevo2817&&!soloResico;
+  const imp=['ISR']; if(iva) imp.push('IVA');
+  if(c.r606&&c.arrendatarioPM) imp.push('Ret. ISR 10% / IVA 2/3');
+  let diot, ce, conc;
+  if(soloResico) diot={ob:false,txt:'Relevado',fund:'RESICO PF · RMF 2026'};
+  else if(!iva) diot={ob:false,txt:'No aplica',fund:'Sin actos gravados de IVA'};
+  else if(r2817) diot={ob:false,txt:'Relevado',fund:'Regla 2.8.1.17 RMF 2026 (ingresos ≤ $4 mdp, 100% CFDI)'};
+  else diot={ob:true,txt:'Obligado · mensual',fund:'Art. 32-VIII LIVA · vence el último día del mes siguiente'};
+  if(soloResico) ce={ob:false,txt:'Relevado',fund:'RESICO PF · Mis Cuentas (regla 2.8.1.5)'};
+  else if(forma==='ciega') ce={ob:false,txt:'No obligado',fund:'Deducción ciega: sin contabilidad (art. 118-II LISR)'};
+  else if(forma==='miscuentas') ce={ob:false,txt:'Relevado del envío',fund:'Contabilidad en Mis Cuentas (regla 2.8.1.5)'};
+  else if(r2817) ce={ob:false,txt:'Relevado del envío',fund:'Regla 2.8.1.17 RMF 2026 · la contabilidad se sigue llevando'};
+  else ce={ob:true,txt:'Obligado · balanza mensual',fund:'Art. 28-IV CFF · regla 2.8.1.6 (PF: día 5 del segundo mes posterior)'};
+  if(forma==='propia') conc={ob:true,txt:'Requerida',fund:'Parte de la contabilidad: art. 28 CFF y art. 33-A RCFF'};
+  else if(forma==='ciega') conc={ob:false,txt:'No aplica',fund:'Sin obligación de llevar contabilidad'};
+  else conc={ob:false,txt:'No aplica',fund:'Mis Cuentas sustituye la contabilidad'};
+  return {forma, sugerida:!c.formaContabilidad, soloResico, iva, imp, diot, ce, conc};
+}
+
+function fkMesKey(a,m,mas){ let mm=m+mas, aa=a; while(mm>12){mm-=12;aa++;} return `${aa}-${String(mm).padStart(2,'0')}`; }
+function fkPresentada(c,a,m,re,mases){
+  return (window._obligaciones||[]).find(o=>o.rfc===c.rfc&&o.estatus==='presentada'&&re.test(o.tipo||'')
+    &&mases.some(k=>String(o.fechaVencimiento||'').startsWith(fkMesKey(a,m,k))));
+}
+function fkEstadoMes(c,a,m,R){
+  const hoy=new Date(); const cerrado=(a<hoy.getFullYear())||(a===hoy.getFullYear()&&m<hoy.getMonth()+1);
+  const calc=window._historial.some(h=>h.rfc===c.rfc&&h.anio===a&&h.mes===m);
+  const base=ok=>ok?'ok':(cerrado?'pend':'fut');
+  const isr=fkPresentada(c,a,m,/ISR/i,[1])?'ok':calc?'calc':base(false);
+  const iva=!R.iva?'na':fkPresentada(c,a,m,/IVA/i,[1])?'ok':calc?'calc':base(false);
+  const diot=!R.diot.ob?'na':base(!!fkPresentada(c,a,m,/DIOT/i,[1]));
+  const ce=!R.ce.ob?'na':base(!!fkPresentada(c,a,m,/Contabilidad/i,[2]));
+  const conc=!R.conc.ob?'na':base(!!(c.conciliaciones||{})[`${a}-${m}`]);
+  return {isr,iva,diot,ce,conc};
+}
+
+function fkTileVence(tipo){
+  const xs=(window._efirmaCsd||[]).filter(x=>x.rfc===cliActivo.rfc&&x.tipo===tipo&&x.fechaVencimiento)
+    .sort((a,b)=>b.fechaVencimiento.localeCompare(a.fechaVencimiento));
+  if(!xs.length) return {cls:'mut',v:'Sin capturar',d:'Captúrala en e.firma, CSD y avisos'};
+  const d=diasRestantes(xs[0].fechaVencimiento);
+  if(d<0) return {cls:'bad',v:'Vencida',d:'Venció el '+fmtFechaCorta(xs[0].fechaVencimiento)};
+  if(d<=30) return {cls:'warn',v:`Vence en ${d} día(s)`,d:fmtFechaCorta(xs[0].fechaVencimiento)};
+  return {cls:'ok',v:'Vigente',d:'Hasta '+fmtFechaCorta(xs[0].fechaVencimiento)};
+}
+function fkTile32D(c){
+  const o=c.opinion32D||{};
+  if(!o.estatus) return {cls:'mut',v:'Sin revisar',d:'Registra la última consulta'};
+  const dias=o.fecha?-diasRestantes(o.fecha):null;
+  if(o.estatus==='negativa') return {cls:'bad',v:'Negativa',d:o.fecha?'Consultada '+fmtFechaCorta(o.fecha):''};
+  if(dias!==null&&dias>30) return {cls:'warn',v:'Positiva · vencida',d:`Consultada hace ${dias} días (vigencia 30 días naturales)`};
+  return {cls:'ok',v:'Positiva',d:o.fecha?'Consultada '+fmtFechaCorta(o.fecha):''};
+}
+function fkTileBuzon(c){
+  const b=c.buzon||{};
+  if(b.estatus==='no') return {cls:'bad',v:'No habilitado',d:'Habilitar medios de contacto (art. 17-K CFF)'};
+  if(!b.ultimaRevision) return {cls:'mut',v:'Sin revisar',d:'Registra la última revisión'};
+  const dias=-diasRestantes(b.ultimaRevision);
+  if(dias>3) return {cls:'warn',v:`Revisado hace ${dias} días`,d:'Notificación se tiene por hecha a los 3 días hábiles (art. 17-K CFF)'};
+  return {cls:'ok',v:'Revisado',d:fmtFechaCorta(b.ultimaRevision)};
+}
+
 function renderClienteDashboard(){
   if(!cliActivo) return;
-  const anio=parseInt(document.getElementById('dash-anio-cli')?.value||2026);
-  const reg=regActivo||(regs(cliActivo).filter(r=>r.code!=='sal')[0]?.code);
-  document.getElementById('dash-cli-nombre').textContent=cliActivo.nombre;
-  document.getElementById('dash-cli-sub').textContent=cliActivo.rfc+' · '+cliActivo.act+' · '+anio;
-  const histCli=window._historial.filter(h=>h.rfc===cliActivo.rfc&&h.anio===anio&&h.rc===reg);
-  const mesesCalc=histCli.length;
-  const totalISR=histCli.reduce((s,h)=>s+h.isr,0);
-  const totalIVA=histCli.reduce((s,h)=>s+h.iva,0);
-  const totalIng=histCli.reduce((s,h)=>s+(h.ingGrav||0),0);
-  const mesActual=new Date().getMonth()+1;
+  const cont=document.getElementById('ficha-body'); if(!cont) return;
+  const c=cliActivo, R=fkReglas(c);
+  const hoy=new Date();
+  const anio=window._fkAnio||hoy.getFullYear();
+  const rs=regs(c).filter(r=>r.code!=='sal');
+  const sal=regs(c).some(r=>r.code==='sal');
+  const reg=regActivo||(rs[0]?.code);
+  const hist=window._historial.filter(h=>h.rfc===c.rfc&&h.anio===anio);
+  const tot=k=>hist.reduce((s,h)=>s+(h[k]||0),0);
+  const e=fdEsc;
 
-  // KPIs
-  document.getElementById('dash-kpis').innerHTML=`
-    <div class="dash-kpi"><div class="val g">${mesesCalc} / 12</div><div class="lbl">Meses calculados ${anio}</div></div>
-    <div class="dash-kpi"><div class="val r">${fmt(totalISR)}</div><div class="lbl">ISR acumulado</div></div>
-    <div class="dash-kpi"><div class="val b">${fmt(totalIVA)}</div><div class="lbl">IVA acumulado</div></div>
-    <div class="dash-kpi"><div class="val g">${fmt(totalIng)}</div><div class="lbl">Ingresos acumulados</div></div>
-  `;
+  // Cabecera: régimen → impuestos → responsable
+  const regTxt=rs.map(r=>`<i>${r.code}</i> ${r.l}`).join(' · ')+(sal?' · <i>sal</i> Salarios':'');
+  const impTxt=R.imp.join(' · ')+(c.iva==='no'?' <span class="fk-m">(IVA exento)</span>':c.iva==='mixto'?' <span class="fk-m">(IVA mixto)</span>':'');
+  const head=`<div class="fk-head">
+    <div><div class="fc-eyebrow">${e(c.rfc)}</div><h1 class="fc-h1">${e(c.nombre)}</h1>
+      <div class="fc-sub">${e(c.act||'')}</div></div>
+    <div class="fk-chain">
+      <div><span>Régimen</span><b>${regTxt||'—'}</b></div><em>→</em>
+      <div><span>Impuestos</span><b>${impTxt}</b></div><em>→</em>
+      <div><span>Responsable</span><b>${e(c.responsable||'Sin asignar')}</b></div>
+    </div></div>`;
 
-  // Grid de meses
-  document.getElementById('dash-mes-grid').innerHTML=MF.map((m,i)=>{
-    const n=i+1;
-    const h=histCli.find(x=>x.mes===n);
-    const isCurr=n===mesActual&&!h;
-    const cls=h?'done':isCurr?'curr':'empty';
-    return`<div class="mes-cell ${cls}" onclick="if(${!!h}){verHistorialMes('${cliActivo.rfc}',${n},${anio},'${reg||'626'}');}else{goClientePanel('calc-panel');selMes(${n});}">
-      <div style="font-weight:600;margin-bottom:2px">${MS[i]}</div>
-      <div style="font-size:9px">${h?fmt(h.isr):isCurr?'pendiente':'—'}</div>
+  // Recuadros
+  const t=(n,x,extra='')=>`<div class="fk-tile ${x.cls}"><div class="n">${n}</div><div class="v">${e(x.v)}</div><div class="d">${e(x.d)}</div>${extra}</div>`;
+  const ob=x=>({cls:x.ob?'ok':'mut',v:x.txt,d:x.fund});
+  const concX=R.conc.ob?{cls:c.conciliacionContratada?'ok':'warn',v:c.conciliacionContratada?'Requerida · contratada':'Requerida · NO contratada',d:c.conciliacionContratada?R.conc.fund:'Recabar carta de alcance firmada por el cliente'}:ob(R.conc);
+  const tiles=`<div class="fk-tiles">
+    ${t('e.firma',fkTileVence('efirma'))}${t('CSD',fkTileVence('csd'))}
+    ${t('Opinión 32-D',fkTile32D(c))}${t('Buzón tributario',fkTileBuzon(c))}
+    ${t('DIOT',ob(R.diot))}${t('Contabilidad electrónica',ob(R.ce))}${t('Conciliación bancaria',concX)}${c.r626?t('Límite RESICO',fkTileLimite(c,anio)):''}
+  </div>`;
+
+  // Meses palomeados
+  const cols=[['isr','ISR'],['iva','IVA'],['diot','DIOT'],['ce','CE'],['conc','Conc.']]
+    .filter(([k])=>k==='isr'||(k==='iva'&&R.iva)||(k==='diot'&&R.diot.ob)||(k==='ce'&&R.ce.ob)||(k==='conc'&&R.conc.ob));
+  const ico={ok:'✓',calc:'◐',pend:'!',fut:'·',na:''};
+  const tip={ok:'Presentada / hecha',calc:'Calculada, sin marcar presentada',pend:'Pendiente',fut:'Periodo abierto'};
+  const meses=MF.map((m,i)=>{
+    const n=i+1, st=fkEstadoMes(c,anio,n,R);
+    const h=hist.find(x=>x.mes===n&&x.rc===reg)||hist.find(x=>x.mes===n);
+    const abrir=h?`verHistorialMes('${c.rfc}',${n},${anio},'${h.rc}')`:`goClientePanel('calc-panel');selMes(${n})`;
+    return `<div class="fk-mes">
+      <button class="fk-mh" onclick="${abrir}"><b>${MS[i]}</b><span>${h?'ISR '+fmt(h.isr||0):'—'}</span></button>
+      <div class="fk-ob">${cols.map(([k,l])=>{
+        const s=st[k]; const click=k==='conc'&&s!=='fut'?` onclick="fkToggleConc(${anio},${n})" style="cursor:pointer"`:'';
+        return `<span class="s-${s}" title="${l}: ${tip[s]||''}"${click}><em>${ico[s]}</em>${l}</span>`;}).join('')}</div>
     </div>`;
   }).join('');
+  const anios=[hoy.getFullYear(),hoy.getFullYear()-1,hoy.getFullYear()-2].map(a=>`<option ${a===anio?'selected':''}>${a}</option>`).join('');
+  const mesesHTML=`<div class="fc-card"><div class="fk-cardh"><h2>Obligaciones por mes</h2>
+      <select class="fc-sel" onchange="window._fkAnio=+this.value;renderClienteDashboard()">${anios}</select></div>
+    <div class="fk-leg"><span class="s-ok"><em>✓</em>Presentada</span><span class="s-calc"><em>◐</em>Calculada</span><span class="s-pend"><em>!</em>Pendiente</span><span class="s-fut"><em>·</em>Periodo abierto</span>${R.conc.ob?'<span class="fk-m">Clic en “Conc.” para marcar la conciliación del mes</span>':''}</div>
+    <div class="fk-meses">${meses}</div>
+    <div class="fk-kpis"><div><span>ISR ${anio}</span><b>${fmt(tot('isr'))}</b></div><div><span>IVA ${anio}</span><b>${fmt(tot('iva'))}</b></div><div><span>Ingresos ${anio}</span><b>${fmt(tot('ingGrav'))}</b></div><div><span>Meses calculados</span><b>${new Set(hist.map(h=>h.mes)).size} / 12</b></div></div>
+  </div>`;
 
-  // Alertas
-  const pendientes=[];
-  for(let m=1;m<=mesActual;m++){
-    if(!histCli.find(h=>h.mes===m)) pendientes.push(MF[m-1]);
-  }
-  const alertasHTML=pendientes.length===0
-    ?'<div class="alert a-ok">✓ Todos los meses calculados al día</div>'
-    :pendientes.slice(0,3).map(m=>`<div class="alert a-warn">⚠ ${m} ${anio} — pendiente de calcular</div>`).join('');
-  document.getElementById('dash-alertas').innerHTML=alertasHTML;
+  // Configuración del cliente
+  const o32=c.opinion32D||{}, bz=c.buzon||{};
+  const formaOpts=Object.entries(FK_FORMAS).map(([k,v])=>`<option value="${k}" ${R.forma===k?'selected':''}>${v}</option>`).join('');
+  const config=`<div class="fc-card fk-conf"><div class="fk-cardh"><h2>Datos de cumplimiento</h2>${R.sugerida?'<span class="fc-tag fc-t-warn">Forma sugerida · guarda para confirmar</span>':''}</div>
+    <label>Forma de llevar contabilidad<select id="fk-forma" class="fc-sel">${formaOpts}</select></label>
+    ${R.soloResico?'':`<label class="fk-chk"><input type="checkbox" id="fk-2817" ${c.relevo2817?'checked':''}> Aplica regla 2.8.1.17 (ingresos ≤ $4 mdp y 100% CFDI)</label>`}
+    ${c.r606?`<label class="fk-chk"><input type="checkbox" id="fk-arrpm" ${c.arrendatarioPM?'checked':''}> Arrendatario persona moral (retiene 10% ISR y 2/3 IVA)</label>`:''}
+    ${c.r626&&c.iva!=='no'?`<label class="fk-chk"><input type="checkbox" id="fk-iva7" ${c.iva7?'checked':''}> Opta por IVA 7% en 2027 (art. 25-XVIII LIF)</label>
+    <label>Fecha del aviso de la opción 7%<input type="date" id="fk-iva7-f" class="fc-sel" value="${c.iva7Aviso||''}"></label>`:''}
+    <label class="fk-chk"><input type="checkbox" id="fk-conc" ${c.conciliacionContratada?'checked':''}> Conciliación bancaria contratada</label>
+    <label>Responsable<input id="fk-resp" class="fc-sel" value="${e(c.responsable||'')}" placeholder="Nombre de quien lleva al cliente"></label>
+    <div class="fk-2"><label>Opinión 32-D<select id="fk-32d" class="fc-sel"><option value="">Sin revisar</option><option value="positiva" ${o32.estatus==='positiva'?'selected':''}>Positiva</option><option value="negativa" ${o32.estatus==='negativa'?'selected':''}>Negativa</option></select></label>
+      <label>Fecha de consulta<input type="date" id="fk-32d-f" class="fc-sel" value="${o32.fecha||''}"></label></div>
+    <div class="fk-2"><label>Buzón tributario<select id="fk-bz" class="fc-sel"><option value="si" ${bz.estatus!=='no'?'selected':''}>Habilitado</option><option value="no" ${bz.estatus==='no'?'selected':''}>No habilitado</option></select></label>
+      <label>Última revisión<input type="date" id="fk-bz-f" class="fc-sel" value="${bz.ultimaRevision||''}"></label></div>
+    <button class="fc-btn pri" onclick="fkGuardarConfig()">Guardar</button>
+  </div>`;
 
-  // Accesos rápidos
-  document.getElementById('dash-accesos').innerHTML=`
-    <button class="btn btn-sm" onclick="goClientePanel('cfdi-panel')">📄 Ver CFDI emitidos</button>
-    <button class="btn btn-sm" onclick="goClientePanel('cfdi-panel')">📥 Ver CFDI recibidos</button>
-    <button class="btn btn-sm btn-primary" onclick="goClientePanel('calc-panel');selMes(${mesActual})">▶ Calcular ${MF[mesActual-1]}</button>
-    <button class="btn btn-sm" onclick="goClientePanel('excel-panel')">📊 Generar Excel</button>
-    <button class="btn btn-sm" onclick="goClientePanel('xml-panel')">📂 Subir XML</button>
-  `;
+  const acc=`<div class="fk-acc">
+    <button class="fc-btn pri" onclick="goClientePanel('calc-panel')">▶ Calcular mes</button>
+    <button class="fc-btn" onclick="goClientePanel('xml-panel')">📂 XML</button>
+    <button class="fc-btn" onclick="goClientePanel('cfdi-panel')">📄 CFDI</button>
+    <button class="fc-btn" onclick="goClientePanel('oblig-panel')">Obligaciones</button>
+    <button class="fc-btn" onclick="goClientePanel('cumplim-panel')">e.firma, CSD y avisos</button>
+    <button class="fc-btn" onclick="goClientePanel('excel-panel')">📊 Excel</button>
+  </div>`;
+
+  cont.innerHTML=head+acc+tiles+`<div class="fk-grid">${mesesHTML}${config}</div>`+fkComparativoIva(c,anio);
+}
+
+async function fkGuardarConfig(){
+  if(!cliActivo) return;
+  const v=id=>document.getElementById(id);
+  const c=cliActivo;
+  c.formaContabilidad=v('fk-forma').value;
+  if(v('fk-2817')) c.relevo2817=v('fk-2817').checked;
+  if(v('fk-arrpm')) c.arrendatarioPM=v('fk-arrpm').checked;
+  c.conciliacionContratada=v('fk-conc').checked;
+  if(v('fk-iva7')){ c.iva7=v('fk-iva7').checked; c.iva7Aviso=v('fk-iva7-f').value; }
+  c.responsable=v('fk-resp').value.trim();
+  c.opinion32D={estatus:v('fk-32d').value,fecha:v('fk-32d-f').value};
+  c.buzon={estatus:v('fk-bz').value,ultimaRevision:v('fk-bz-f').value};
+  try{ await window.dbSaveCli(c); toast('Datos del cliente guardados ☁️'); }
+  catch(err){ toast('Error al guardar: '+err.message,'err'); }
+  renderClienteDashboard();
+}
+
+async function fkToggleConc(anio,mes){
+  if(!cliActivo) return;
+  const c=cliActivo, k=`${anio}-${mes}`;
+  c.conciliaciones=c.conciliaciones||{};
+  if(c.conciliaciones[k]) delete c.conciliaciones[k]; else c.conciliaciones[k]=new Date().toISOString().slice(0,10);
+  renderClienteDashboard();
+  try{ await window.dbSaveCli(c); }catch(err){ toast('Error al guardar conciliación: '+err.message,'err'); }
+}
+
+// Días inhábiles (art. 12 CFF + regla 2.1.6 fr. II RMF 2026, Cuarta RM DOF 30-oct-2026).
+// Si el plazo vence en día inhábil se prorroga al siguiente día hábil (art. 12 CFF).
+// Las vacaciones del SAT NO prorrogan declaraciones ni pagos (art. 12 CFF, 2o. párrafo).
+const FD_INHABILES=new Set(['2026-01-01','2026-02-02','2026-03-16','2026-04-02','2026-04-03','2026-05-01','2026-05-05','2026-09-16','2026-11-02','2026-11-16','2026-12-25',
+  '2027-01-01','2027-02-01','2027-03-15','2027-05-01','2027-05-05','2027-09-16','2027-11-15','2027-12-25']);
+function fdHabil(iso){
+  const d=new Date(iso+'T12:00:00');
+  for(;;){ const s=d.toISOString().slice(0,10), w=d.getDay(); if(w!==0&&w!==6&&!FD_INHABILES.has(s)) return s; d.setDate(d.getDate()+1); }
 }
 
 // ── NUEVO: PANEL CFDI ──────────────────────────────────────────────────
@@ -3208,6 +3421,7 @@ window.goClientePanel = function(id){
   document.getElementById('screen-home').style.display='none';
   document.getElementById('screen-dashboard').style.display='none';
   document.getElementById('screen-client').style.display='flex';
+  const ctb=document.querySelector('.client-topbar'); if(ctb) ctb.style.display=(id==='dash-panel')?'none':'';
   if(id==='dash-panel'&&typeof renderClienteDashboard==='function') renderClienteDashboard();
   if(id==='cfdi-panel'&&typeof renderCFDIPanel==='function') renderCFDIPanel();
   if(id==='calc-panel'&&typeof fillSel==='function') fillSel();
@@ -3329,7 +3543,7 @@ function fdVencimientos(etapas){
   const sig=fdSigMes(anio,mes);
   const lista=[];
   const pendientes=etapas.filter(e=>e.etapa!=='term').length;
-  lista.push({fecha:fdISO(sig.anio,sig.mes,17),t:`Pagos provisionales de ${MF[mes-1].toLowerCase()}`,d:`ISR e IVA · ${pendientes} cliente(s) sin presentar`});
+  lista.push({fecha:fdHabil(fdISO(sig.anio,sig.mes,17)),t:`Pagos provisionales de ${MF[mes-1].toLowerCase()}`,d:`ISR e IVA · ${pendientes} cliente(s) sin presentar`});
   const grupos={};
   (window._obligaciones||[]).filter(o=>o.estatus!=='presentada').forEach(o=>{
     const d=diasRestantes(o.fechaVencimiento); if(d===null||d<0||d>14) return;
@@ -3345,7 +3559,7 @@ function renderCierre(){
   const cont=document.getElementById('cierre-body'); if(!cont) return;
   const {anio,mes}=window._fdPeriodo;
   const sig=fdSigMes(anio,mes);
-  const vence=fdISO(sig.anio,sig.mes,17);
+  const vence=fdHabil(fdISO(sig.anio,sig.mes,17));
   const dv=diasRestantes(vence);
   const venceTxt=new Date(vence+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
   const clientes=[...window._clientes].sort((a,b)=>a.nombre.localeCompare(b.nombre));
