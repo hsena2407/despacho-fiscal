@@ -1788,22 +1788,19 @@ function renderMesGrid(){
     </div>`;
   }).join('');
 
-  // Si el mes activo ya tiene resultado guardado mostrar botón de restaurar
-  if(mesActivo && ok.includes(mesActivo)){
-    const bCarga = document.getElementById('btn-cargar-mes');
-    if(!bCarga){
-      const div = document.createElement('div');
-      div.id = 'btn-cargar-mes';
-      div.style.cssText = 'margin-top:8px;';
-      div.innerHTML = `<div class="alert a-ok" style="display:flex;align-items:center;gap:10px;padding:8px 12px">
-        <span style="font-size:12px">✓ Este mes ya fue calculado</span>
-        <button class="btn btn-sm btn-primary" onclick="cargarXMLsYRecalcular()" style="margin-left:auto">↺ Cargar XML y recalcular</button>
-      </div>`;
-      document.getElementById('mes-grid').after(div);
-    }
-  } else {
-    const bCarga = document.getElementById('btn-cargar-mes');
-    if(bCarga) bCarga.remove();
+  // Botón para calcular con los XML guardados en la nube (subidos desde FiscoDesk o desde el Conector)
+  const bPrev = document.getElementById('btn-cargar-mes');
+  if(bPrev) bPrev.remove();
+  if(mesActivo){
+    const yaCalc = ok.includes(mesActivo);
+    const div = document.createElement('div');
+    div.id = 'btn-cargar-mes';
+    div.style.cssText = 'margin-top:8px;';
+    div.innerHTML = `<div class="alert ${yaCalc?'a-ok':'a-info'}" style="display:flex;align-items:center;gap:10px;padding:8px 12px">
+      <span style="font-size:12px">${yaCalc?'✓ Este mes ya fue calculado':'☁ Usa los XML que ya están en la nube para este mes'}</span>
+      <button class="btn btn-sm btn-primary" onclick="cargarXMLsYRecalcular()" style="margin-left:auto">${yaCalc?'↺ Cargar XML y recalcular':'☁ Cargar XML y calcular'}</button>
+    </div>`;
+    document.getElementById('mes-grid').after(div);
   }
 }
 
