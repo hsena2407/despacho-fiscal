@@ -2327,26 +2327,27 @@ async function cargarXMLsGuardados(){
       }
     }catch(e){}
   }
-  // Complementos de pago emitidos el mes siguiente con fecha de pago de este mes (regla 2.7.1.32 RMF:
-  // se expiden a más tardar el día 5 del mes siguiente al pago). El ingreso/IVA es del mes del pago.
+  // Complementos de pago de todo el año (y enero-marzo del siguiente). Sirven para:
+  // (1) traer complementos emitidos en un mes POSTERIOR cuya fecha de pago cae en este mes
+  //     (deben expedirse a más tardar el día 5 del mes siguiente al pago, regla 2.7.1.32 RMF 2026,
+  //     pero a veces se emiten después); (2) decir en qué mes se pagó cada factura PPD.
   let extra=0; window._cpMesSig=new Set();
   try{
-    const sig=fdSigMes(anio,mesActivo);
+    const cps=await fkCargarCPsAnio(rfc,anio);
+    const actual=anio*12+mesActivo;
     for(const tipo of['e','r']){
-      const data=await window.dbGetXML(`${rfc}_${sig.anio}_${sig.mes}_${tipo}`);
       const lista=tipo==='e'?xmlEmitidos:xmlRecibidos;
       const ya=new Set(lista.map(f=>String(parseXML(f.text,f.name).uuid||'').toUpperCase()));
-      (data?.archivos||[]).forEach(f=>{
-        const x=parseXML(f.text,f.name);
-        if(x.err||x.tipo!=='P') return;
-        const u=String(x.uuid||'').toUpperCase(); if(ya.has(u)) return;
-        if(!(x.pagos||[]).some(pg=>{const d=new Date(pg.fecha);return d.getMonth()+1===mesActivo&&d.getFullYear()===anio;})) return;
-        lista.push(f); window._cpMesSig.add(u); extra++;
+      cps.filter(c=>c.tipo===tipo&&c.per>actual).forEach(c=>{
+        if(ya.has(c.u)) return;
+        fkAplicarAjusteCP(c.x);
+        if(!(c.x.pagos||[]).some(pg=>{const d=new Date(pg.fecha);return d.getMonth()+1===mesActivo&&d.getFullYear()===anio;})) return;
+        lista.push(c.f); ya.add(c.u); window._cpMesSig.add(c.u); extra++;
       });
     }
-  }catch(e){}
+  }catch(e){ console.warn('Complementos de otros meses:',e); }
   cargados+=extra;
-  if(cargados>0){toast('☁ '+cargados+' XML cargados desde la nube'+(extra?` (incluye ${extra} complemento(s) del mes siguiente con pago de este mes)`:''));}
+  if(cargados>0){toast('☁ '+cargados+' XML cargados desde la nube'+(extra?` (incluye ${extra} complemento(s) emitido(s) después con pago de este mes)`:''));}
   else{toast('Sin XML guardados para este mes','err');}
 }
 
@@ -2494,8 +2495,11 @@ async function procesar(){
   // Parsear emitidos y recibidos por separado
   const todosEmit0=xmlEmitidos.map(f=>parseXML(f.text,f.name)).filter(x=>!x.err);
   const recib0=xmlRecibidos.map(f=>parseXML(f.text,f.name)).filter(x=>!x.err);
+  window._fechasFact=window._fechasFact||{};
+  [...todosEmit0,...recib0].forEach(x=>{ if(x.tipo==='I'&&x.uuid) window._fechasFact[String(x.uuid).toUpperCase()]=x.fecha; });
   // CFDI cancelados en el SAT (según la verificación del Conector): no entran al cálculo
   const cancEmit=todosEmit0.filter(x=>fkEsCancelado(x.uuid)), cancRecib=recib0.filter(x=>fkEsCancelado(x.uuid));
+  [...todosEmit0,...recib0].forEach(fkAplicarAjusteCP);
   const todosEmit=todosEmit0.filter(x=>!fkEsCancelado(x.uuid));
   const recib=recib0.filter(x=>!fkEsCancelado(x.uuid));
   const noms=recib.filter(x=>x.esNom||x.tipo==='N');
@@ -2527,8 +2531,10 @@ async function procesar(){
   [...todosEmit.filter(x=>x.tipo==='P').map(x=>({x,t:'e'})),...recib.filter(x=>x.tipo==='P').map(x=>({x,t:'r'}))].forEach(({x,t})=>{
     const ps=(x.pagos||[]).filter(pg=>pg.fecha);
     x.fueraPlazo=ps.some(pg=>new Date(x.fecha)>plazoCP(pg.fecha));
+    x.pagoRaro=x.ajusteCP?false:fkPagoInconsistente(x);
     x.mesesPago=[...new Set(ps.map(pg=>{const d=new Date(pg.fecha);return d.getFullYear()*100+d.getMonth()+1;}))];
     // Emitido en este mes pero con pago(s) de un mes anterior: corresponde a ese mes
+    if(x.pagoRaro) return; // fecha de pago dudosa: se avisa aparte, no se manda a otro mes
     ps.filter(pg=>{const d=new Date(pg.fecha);return d.getFullYear()*12+d.getMonth()+1<anio*12+mesActivo;}).forEach(pg=>{
       const d=new Date(pg.fecha); const k={u:String(x.uuid||'').toUpperCase(),t,anio:d.getFullYear(),mes:d.getMonth()+1};
       if(!cpAtrasados.some(y=>y.u===k.u&&y.anio===k.anio&&y.mes===k.mes)) cpAtrasados.push(k);
@@ -2656,6 +2662,7 @@ async function procesar(){
   if(cliActivo.rSal&&noms.length)r.salInfo={total:noms.reduce((s,x)=>s+x.sub,0),isrRet:noms.reduce((s,x)=>s+x.isrRet,0),n:noms.length};
   if(cliActivo.iva!=='no'&&typeof fkAplicarSaldoIVA==='function') fkAplicarSaldoIVA(r,cliActivo,anio,mesActivo,reg);
   r.cancEmit=cancEmit;r.cancRecib=cancRecib;r.cpAtrasados=cpAtrasados;
+  r.cpRaros=[...todosEmit.filter(x=>x.tipo==='P'&&x.pagoRaro&&!pagosDelMes(x).length).map(x=>({x,t:'e'})),...recib.filter(x=>x.tipo==='P'&&x.pagoRaro&&!cpCorrespondeAlMes(x,mesActivo,anio)).map(x=>({x,t:'r'}))];
   r.mes=mesActivo;r.anio=anio;r.cpOtroMes=cpOtroMes;r.emitPPDsinCP=emitPPDsinCP||[];r.ivaAcredSAT=ivaAcredSAT;r.ivaAcredComb=ivaAcredComb;r.gastosDedComb=gastosDedComb;
   const entry={rfc,nom:cliActivo.nombre,mes:mesActivo,anio,rc:reg,rl:r.rl,isr:r.isrCargo||0,iva:r.ivaP||0,fecha:new Date().toISOString(),
     ingGrav:+(r.ingGrav||0).toFixed(2),ingGravIVA:+((r.ingGravIVA??r.ingGrav)||0).toFixed(2),ingEx:+(r.ingEx||0).toFixed(2),
@@ -2706,6 +2713,18 @@ function renderRes(r){
     <div style="font-size:11pt">${r.rl} | ${mesL}</div>
     <div style="font-size:8.5pt;color:#555">Fundamento: ${r.reg==='626'?'Art.113-E, 113-J LISR':r.reg==='612'?'Art.100-106 LISR':'Art.114-116 LISR'} | ${c.iva==='no'?'Art.15-XIV LIVA (exento)':'Art.1o., 5o. LIVA'} | RMF 2026</div>
   </div>`;
+  if((r.cpRaros||[]).length){
+    const mesTxt=MF[r.mes-1]+' '+r.anio;
+    h+=`<div class="alert a-warn">⚠ <div><strong>${r.cpRaros.length} complemento(s) de pago con fecha de pago dudosa — no se sumaron</strong><br>
+      La fecha de pago es de un ejercicio anterior o anterior a la factura que paga. El ingreso y el IVA se consideran cuando se cobran efectivamente (art. 113-E LISR; art. 1-B LIVA), y la fecha de pago del complemento debe ser la del cobro real.
+      Lo correcto es cancelar y volver a emitir el complemento con la fecha real. Si según el estado de cuenta el cobro fue en ${mesTxt}, puedes considerarlo aquí mientras se corrige:
+      <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">${r.cpRaros.map(({x})=>`<div>• ${x.serie||''} ${x.folio||''} · emitido ${String(x.fecha).substring(0,10)} · fecha de pago ${(x.pagos||[]).map(pg=>String(pg.fecha).substring(0,10)).join(', ')} · base ${fmt(x.sub)}
+        <button class="fk-lnk" style="margin-left:6px;font-weight:600" onclick="fkAjustarCP('${String(x.uuid).toUpperCase()}',${r.anio},${r.mes})">Considerar en ${mesTxt}</button></div>`).join('')}</div></div></div>`;
+  }
+  {
+    const aj=[...(r.emit||[]),...(r.gastosDeducibles||[])].filter(x=>x.tipo==='P'&&x.ajusteCP);
+    if(aj.length) h+=`<div class="alert a-info">ℹ <div><strong>${aj.length} complemento(s) considerado(s) en este mes por ajuste manual</strong> (su fecha de pago original era ${[...new Set(aj.flatMap(x=>x.ajusteCP.orig))].map(f=>String(f).substring(0,10)).join(', ')}). ${aj.map(x=>`<button class="fk-lnk" onclick="fkQuitarAjusteCP('${String(x.uuid).toUpperCase()}')">Quitar ajuste ${x.serie||''} ${x.folio||''}</button>`).join(' ')}</div></div>`;
+  }
   if((r.cpAtrasados||[]).length){
     const meses=[...new Set(r.cpAtrasados.map(y=>MF[y.mes-1]+' '+y.anio))];
     h+=`<div class="alert a-warn">⚠ <div><strong>${r.cpAtrasados.length} complemento(s) de pago emitido(s) este mes con pago de ${meses.join(', ')}</strong>. No se suman aquí: van en el mes del pago. FiscoDesk los toma al calcular ese mes; si ya estaba calculado, te avisará para recalcularlo.</div></div>`;
@@ -2794,7 +2813,7 @@ function renderRes(r){
     return `<tr style="${cobrado?'':'opacity:.45'}${canc?';text-decoration:line-through':''}">
       <td style="white-space:nowrap;font-size:10px">
         ${fechaShow}
-        ${x.tipo==='P'?`<div style="font-size:8px;color:#00aa66;font-weight:600">Fecha de pago</div><div style="font-size:8px;color:var(--text3)">Emitido ${x.fecha?.substring(0,10)||''}</div>${(window._cpMesSig||new Set()).has(String(x.uuid||'').toUpperCase())?'<div style="font-size:8px;color:#1F5FBF;font-weight:600">Del mes siguiente</div>':''}${x.fueraPlazo?'<div style="font-size:8px;color:#B42318;font-weight:600" title="Regla 2.7.1.32 RMF 2026: a más tardar el día 5 del mes siguiente al pago">Fuera de plazo</div>':''}`:''}
+        ${x.tipo==='P'?`<div style="font-size:8px;color:#00aa66;font-weight:600">Fecha de pago</div><div style="font-size:8px;color:var(--text3)">Emitido ${x.fecha?.substring(0,10)||''}</div>${(window._cpMesSig||new Set()).has(String(x.uuid||'').toUpperCase())?'<div style="font-size:8px;color:#1F5FBF;font-weight:600">Emitido en mes posterior</div>':''}${x.pagoRaro?'<div style="font-size:8px;color:#B42318;font-weight:600">Fecha de pago dudosa</div>':x.fueraPlazo?'<div style="font-size:8px;color:#B42318;font-weight:600" title="Regla 2.7.1.32 RMF 2026: a más tardar el día 5 del mes siguiente al pago">Fuera de plazo</div>':''}${x.ajusteCP?'<div style="font-size:8px;color:#1F5FBF;font-weight:600">Ajuste manual</div>':''}`:''}
       </td>
       <td style="font-family:var(--mono);font-size:10px;white-space:nowrap">${(x.serie||'')} ${(x.folio||'')}</td>
       <td><div style="font-family:var(--mono);font-size:10px">${x.rfcR||x.rfcE||'—'}</div><div style="font-size:10px;color:var(--text2)">${(x.nomR||x.nomE||'').substring(0,22)}</div></td>
@@ -2804,6 +2823,7 @@ function renderRes(r){
       <td style="text-align:center">
         <span style="font-size:9px;padding:1px 5px;border-radius:3px;font-family:var(--mono);background:${metBg};color:${metCol}">${metLabel}</span>
         ${cobrado?'':'<div style="font-size:8px;color:var(--warn)">'+razonNoCobrado+'</div>'}
+        ${x.tipo==='I'&&x.metodo==='PPD'&&!canc?`<div style="font-size:8px;color:${fkPagosPPD(x.uuid).length?'#1F5FBF':'#B42318'};max-width:170px;white-space:normal;opacity:1">${fkTextoPPD(x)}</div>`:''}
       </td>
       <td style="font-size:10px;white-space:nowrap">${fD(x.tipo==='P'?x.formaPagoP:x.forma)}</td>
       <td class="num" style="color:${cobrado?'inherit':'var(--text3)'}">${fmt(x.tipo==='P'?(x.subMes??x.sub):x.sub)}</td>
@@ -3694,6 +3714,78 @@ async function fkToggleDevol(id){
   renderClienteDashboard();
 }
 
+
+
+
+// Complemento con fecha de pago dudosa: de un ejercicio anterior al de su emisión (salvo diciembre→ene-mar)
+// o anterior a la fecha de la factura PPD que paga.
+function fkPagoInconsistente(x){
+  const em=new Date(x.fecha);
+  return (x.pagos||[]).some(pg=>{
+    if(!pg.fecha) return false;
+    const d=new Date(pg.fecha);
+    if(d.getFullYear()<em.getFullYear() && !(d.getFullYear()===em.getFullYear()-1&&d.getMonth()===11&&em.getMonth()<=2)) return true;
+    return (pg.docs||[]).some(dr=>{ const f=(window._fechasFact||{})[dr.id]; return f&&d<new Date(String(f).substring(0,10)); });
+  });
+}
+// Ajuste manual: tratar los pagos de un complemento como cobrados en el mes indicado
+function fkAplicarAjusteCP(x){
+  if(!x||x.tipo!=='P'||x.ajusteCP) return;
+  const aj=(cliActivo?.cpAjustes||{})[String(x.uuid||'').toUpperCase()]; if(!aj) return;
+  const f=`${aj.anio}-${String(aj.mes).padStart(2,'0')}-${String(new Date(aj.anio,aj.mes,0).getDate()).padStart(2,'0')}T12:00:00`; // último día del mes
+  x.ajusteCP={orig:(x.pagos||[]).map(pg=>pg.fecha)};
+  (x.pagos||[]).forEach(pg=>pg.fecha=f); x.fechaPagoP=f;
+}
+async function fkAjustarCP(uuid,anio,mes){
+  const c=cliActivo; if(!c) return;
+  c.cpAjustes={...(c.cpAjustes||{}),[uuid]:{anio,mes,fecha:new Date().toISOString().slice(0,10)}};
+  try{ await window.dbSaveCli(c); }catch(err){ toast('Error al guardar: '+err.message,'err'); return; }
+  toast('Complemento considerado en '+MF[mes-1]+' '+anio); window._cpCache={};
+  if(typeof cargarXMLsYRecalcular==='function') await cargarXMLsYRecalcular();
+}
+async function fkQuitarAjusteCP(uuid){
+  const c=cliActivo; if(!c) return;
+  const a={...(c.cpAjustes||{})}; delete a[uuid]; c.cpAjustes=a;
+  try{ await window.dbSaveCli(c); }catch(err){ toast('Error al guardar: '+err.message,'err'); return; }
+  toast('Ajuste quitado'); window._cpCache={};
+  if(typeof cargarXMLsYRecalcular==='function') await cargarXMLsYRecalcular();
+}
+
+// Lee de la nube los complementos de pago (tipo P) del año y de enero-marzo del siguiente.
+// Deja en window._ppdPagos: UUID de factura PPD → pagos [{cp, fechaPago, emitido, monto}].
+window._cpCache={};
+async function fkCargarCPsAnio(rfc,anio){
+  const key=rfc+'_'+anio, c0=window._cpCache[key];
+  if(c0&&Date.now()-c0.t<15*1000) return c0.lista; // solo evita leer dos veces en el mismo cálculo
+  const ids=[];
+  for(let m=1;m<=12;m++) ids.push([anio,m]);
+  for(let m=1;m<=3;m++) ids.push([anio+1,m]);
+  const lista=[], porPPD={};
+  await Promise.all(ids.flatMap(([a,m])=>['e','r'].map(async tipo=>{
+    let d=null; try{ d=await window.dbGetXML(`${rfc}_${a}_${m}_${tipo}`); }catch(_){}
+    (d?.archivos||[]).forEach(f=>{
+      if(!/TipoDeComprobante="P"/.test(f.text||'')) return;
+      const x=parseXML(f.text,f.name); if(x.err||x.tipo!=='P') return;
+      const u=String(x.uuid||'').toUpperCase();
+      lista.push({f,x,u,tipo,per:a*12+m});
+      (x.pagos||[]).forEach(pg=>(pg.docs||[]).forEach(dr=>{
+        (porPPD[dr.id]=porPPD[dr.id]||[]).push({cp:u,fechaPago:pg.fecha,emitido:x.fecha,monto:dr.pagado,canc:fkEsCancelado(u)});
+      }));
+    });
+  })));
+  window._ppdPagos=Object.assign(window._ppdPagos||{},porPPD);
+  window._cpCache[key]={t:Date.now(),lista};
+  return lista;
+}
+function fkPagosPPD(uuid){ return ((window._ppdPagos||{})[String(uuid||'').toUpperCase()]||[]).filter(p=>!p.canc); }
+function fkTextoPPD(x){
+  const ps=fkPagosPPD(x.uuid);
+  if(!ps.length) return 'Sin complemento de pago en la nube';
+  return ps.map(p=>{
+    const aj=(cliActivo?.cpAjustes||{})[p.cp];
+    if(aj) return `Va en ${MF[aj.mes-1]} ${aj.anio} por ajuste manual (el complemento del ${String(p.emitido||'').substring(0,10)} dice pago ${p.fechaPago.substring(0,10)})`;
+    const d=new Date(p.fechaPago);return `Pagada ${p.fechaPago.substring(0,10)} → va en ${MF[d.getMonth()]} ${d.getFullYear()} (complemento del ${String(p.emitido||'').substring(0,10)})`;}).join(' · ');
+}
 
 // ── ESTATUS SAT DE CFDI Y AVISOS DE CANCELACIÓN ────────────────────────
 // estatus_cfdi lo llena el Conector (npm.cmd run verificar) con el servicio público del SAT.
