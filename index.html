@@ -483,6 +483,10 @@ input[type="checkbox"]{width:auto;cursor:pointer}
 .fk-next{margin-top:18px;display:flex;flex-direction:column;gap:6px}.fk-next .fk-chk{display:flex;align-items:center;gap:8px;font-size:13px}
 .fk-next label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#4F5D75}.fk-next label.fk-chk{flex-direction:row;align-items:center;gap:8px;font-size:13px;color:#14213A}
 .fk-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.iva-nota{font-size:11px;color:#66758C;margin-top:6px;padding:0 2px}
+.fk-lnk{border:none;background:none;color:#1F5FBF;font-size:12px;cursor:pointer;padding:0;font-family:var(--sans)}
+.fk-addsal{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 6px;padding-top:12px;border-top:1px solid #EDF0F5}
+.fk-addsal b{font-size:13px;width:100%}.fk-addsal .fc-sel{width:auto;min-width:110px}
 .fc-btn.ok{background:#12806A;border-color:#12806A;color:#fff}.fc-btn.ok:hover{background:#0E6B58}
 .fk-pres{display:block;width:calc(100% - 16px);margin:0 8px 8px;border:1px dashed #12806A;background:#F2FBF7;color:#12806A;font-size:11px;font-weight:600;border-radius:6px;padding:5px;cursor:pointer;font-family:var(--sans)}
 .fk-pres:hover{background:#E3F5EE}
@@ -1995,7 +1999,7 @@ function renderMesGrid(){
   mg.className='cx-meses';
   mg.innerHTML=MS.map((m,i)=>{
     const n=i+1, h=hs.find(x=>x.mes===n), nube=window._cxNube[`${cliActivo.rfc}_${anio}_${n}`];
-    const st=h?`<b class="ok">✓ Calculado</b><span>ISR ${fmt(h.isr||0)}${cliActivo.iva==='no'?'':' · IVA '+fmt(h.iva||0)}</span>`
+    const st=h?`<b class="ok">✓ Calculado</b><span>ISR ${fmt(h.isr||0)}${cliActivo.iva==='no'?'':' · IVA '+fmt(h.ivaPagar??h.iva??0)}</span>`
       :nube&&(nube.e||nube.r)?`<b class="info">☁ XML listos</b><span>↑${nube.e} ↓${nube.r}</span>`:`<b class="mut">Sin calcular</b><span>&nbsp;</span>`;
     return `<button class="cx-mes ${mesActivo===n?'on':''}" onclick="selMes(${n})"><em>${MF[i]}</em>${st}</button>`;
   }).join('');
@@ -2606,10 +2610,12 @@ async function procesar(){
     r={reg:'606',rl:'Arrendamiento',ingGrav,ded,base,isrCalc,isrRetI,isrCargo,ivaTrasI,ivaRetI,ivaAcred,ivaP,gastoBase,emit,recib,gastosDeducibles,gastosNoDed};
   }
   if(cliActivo.rSal&&noms.length)r.salInfo={total:noms.reduce((s,x)=>s+x.sub,0),isrRet:noms.reduce((s,x)=>s+x.isrRet,0),n:noms.length};
+  if(cliActivo.iva!=='no'&&typeof fkAplicarSaldoIVA==='function') fkAplicarSaldoIVA(r,cliActivo,anio,mesActivo,reg);
   r.mes=mesActivo;r.anio=anio;r.cpOtroMes=cpOtroMes;r.emitPPDsinCP=emitPPDsinCP||[];r.ivaAcredSAT=ivaAcredSAT;r.ivaAcredComb=ivaAcredComb;r.gastosDedComb=gastosDedComb;
   const entry={rfc,nom:cliActivo.nombre,mes:mesActivo,anio,rc:reg,rl:r.rl,isr:r.isrCargo||0,iva:r.ivaP||0,fecha:new Date().toISOString(),
     ingGrav:+(r.ingGrav||0).toFixed(2),ingGravIVA:+((r.ingGravIVA??r.ingGrav)||0).toFixed(2),ingEx:+(r.ingEx||0).toFixed(2),
-    ivaTrasI:+(r.ivaTrasI||0).toFixed(2),ivaRetI:+(r.ivaRetI||0).toFixed(2),ivaAcred:+((r.ivaPropAcred||r.ivaAcred)||0).toFixed(2),ivaF:+(r.ivaF||0).toFixed(2),isrRetI:+(r.isrRetI||0).toFixed(2)};
+    ivaTrasI:+(r.ivaTrasI||0).toFixed(2),ivaRetI:+(r.ivaRetI||0).toFixed(2),ivaAcred:+((r.ivaPropAcred||r.ivaAcred)||0).toFixed(2),ivaF:+(r.ivaF||0).toFixed(2),isrRetI:+(r.isrRetI||0).toFixed(2),
+    ivaSaldoAp:r.ivaSaldoAp||[],ivaSaldoTot:r.ivaSaldoTot||0,ivaPagar:(r.ivaPagar??(r.ivaP||0))};
   try{
     // Verificar si ya existe para incrementar contador de recálculos
     const existing=window._historial.find(h=>h.rfc===rfc&&h.mes===mesActivo&&h.anio===anio&&h.rc===reg);
@@ -2656,7 +2662,7 @@ function renderRes(r){
   // Alertas de combustible
   const cfdisComb = (r.gastosDeducibles||[]).filter(x=>x.esCombustible);
   if(cfdisComb.length>0){
-    h+=`<div class="alert a-warn">⛽ <div><strong>${cfdisComb.length} CFDI de combustible incluido(s)</strong> — IVA acreditable: ${fmt(cfdisComb.reduce((s,x)=>s+x.ivaTras,0))}. El SAT puede no precargarlo automáticamente en abril 2026 por el nuevo complemento HidroYPetro (Regla 2.7.1.48 RMF 2026). <strong>Si no aparece en la precarga, captúralo manualmente al declarar — tienes el soporte del CFDI válido.</strong></div></div>`;
+    // (el IVA de combustibles se informa como nota debajo del cálculo de IVA)
   }
   if(!r.ingGrav&&!r.emit.length)h+=`<div class="alert a-warn">⚠ No se encontraron CFDI emitidos por este RFC. Verifica los XML cargados.</div>`;
   if(c.iva==='no')h+=`<div class="alert a-info">ℹ Actividad exenta de IVA — Art. 15 Fracc. XIV LIVA. Solo ISR mensual.</div>`;
@@ -2665,12 +2671,12 @@ function renderRes(r){
     <div class="metric"><div class="val">${fmt(r.ingGrav)}</div><div class="lbl">Ingresos gravados</div></div>
     ${r.ingEx>0?`<div class="metric"><div class="val">${fmt(r.ingEx)}</div><div class="lbl">Ingresos exentos</div></div>`:''}
     <div class="metric"><div class="val r">${fmt(r.isrCargo)}</div><div class="lbl">ISR a pagar</div></div>
-    ${c.iva!=='no'?`<div class="metric"><div class="val ${(r.ivaF||0)>0?'g':'r'}">${(r.ivaF||0)>0?fmt(r.ivaF)+' FAV':fmt(r.ivaP)}</div><div class="lbl">IVA ${(r.ivaF||0)>0?'favor':'a pagar'}</div></div>`:''}
+    ${c.iva!=='no'?`<div class="metric"><div class="val ${(r.ivaF||0)>0?'g':'r'}">${(r.ivaF||0)>0?fmt(r.ivaF)+' FAV':fmt(r.ivaPagar??r.ivaP)}</div><div class="lbl">IVA ${(r.ivaF||0)>0?'favor':(r.ivaSaldoTot>0?'a pagar (con saldo a favor)':'a pagar')}</div></div>`:''}
     <div class="metric"><div class="val">${r.emit.length}</div><div class="lbl">CFDI emitidos</div></div>
     <div class="metric"><div class="val">${r.recib.length}</div><div class="lbl">CFDI recibidos</div></div>
   </div><div class="divider"></div>`;
   // ── TABS ISR / IVA ──
-  const tabIVA = c.iva !== 'no' ? `<button class="tab-res active" onclick="switchResTab('isr',this.closest('.tabs-wrap'))">ISR <span class="badge-res badge-red">${fmt(r.isrCargo)}</span></button><button class="tab-res" onclick="switchResTab('iva',this.closest('.tabs-wrap'))">IVA <span class="badge-res ${(r.ivaF||0)>0?'badge-green':'badge-red'}">${(r.ivaF||0)>0?'FAV '+fmt(r.ivaF):fmt(r.ivaP)}</span></button>` : `<button class="tab-res active">ISR <span class="badge-res badge-red">${fmt(r.isrCargo)}</span></button>`;
+  const tabIVA = c.iva !== 'no' ? `<button class="tab-res active" onclick="switchResTab('isr',this.closest('.tabs-wrap'))">ISR <span class="badge-res badge-red">${fmt(r.isrCargo)}</span></button><button class="tab-res" onclick="switchResTab('iva',this.closest('.tabs-wrap'))">IVA <span class="badge-res ${(r.ivaF||0)>0?'badge-green':'badge-red'}">${(r.ivaF||0)>0?'FAV '+fmt(r.ivaF):fmt(r.ivaPagar??r.ivaP)}</span></button>` : `<button class="tab-res active">ISR <span class="badge-res badge-red">${fmt(r.isrCargo)}</span></button>`;
   h+=`<div class="tabs-wrap"><div class="tabs-res">${tabIVA}</div>`;
   h+=`<div id="tab-isr" class="tab-pane active">`;
   h+=`<div class="res-section"><div class="sec-title">Cálculo ISR — ${r.rl} <span class="art">${r.reg==='626'?'Art.113-E LISR':r.reg==='612'?'Art.100-106 LISR':'Art.114-116 LISR'}</span></div><table class="calc-table">`;
@@ -2684,17 +2690,11 @@ function renderRes(r){
     h+=`<div class="res-section"><div class="sec-title">Cálculo IVA <span class="art">Art.1o., 5o. LIVA</span></div><table class="calc-table"><tr><td>IVA trasladado 16% <span class="art">Art.1o. LIVA</span></td><td class="pos">${fmt(r.ivaTrasI)}</td></tr><tr><td class="neg">(−) IVA retenido PM <span class="art">Art.1o-A LIVA</span></td><td class="neg">−${fmt(r.ivaRetI)}</td></tr>`;
     if(c.iva==='mixto'){const tot=(r.ingGravIVA||r.ingGrav)+r.ingEx,prop=tot>0?(r.ingGravIVA||r.ingGrav)/tot:0;h+=`<tr class="sub"><td>Base IVA gravada</td><td>${fmt(r.ingGravIVA||r.ingGrav)}</td></tr><tr class="sub"><td>Proporción gravado/total <span class="art">Art.5-V-c LIVA</span></td><td>${pct(prop)}</td></tr><tr><td class="neg">(−) IVA acreditable proporcional</td><td class="neg">−${fmt(r.ivaPropAcred)}</td></tr>`;}
     else h+=`<tr><td class="neg">(−) IVA acreditable gastos <span class="art">Art.5o. LIVA</span></td><td class="neg">−${fmt(r.ivaAcred)}</td></tr>`;
-    // Show SAT precarga IVA vs total
-    const ivaNetaSAT = Math.max(0, (r.ivaTrasI||0) - (r.ivaRetI||0) - (r.ivaAcredSAT||r.ivaAcred||0));
-    const ivaFavorSAT = Math.max(0, (r.ivaRetI||0) + (r.ivaAcredSAT||r.ivaAcred||0) - (r.ivaTrasI||0));
-    h+=`<tr class="tot"><td>IVA a pagar (base precarga SAT — sin combustibles)</td><td class="${ivaFavorSAT>0?'pos':'neg'}">${ivaFavorSAT>0?'FAV '+fmt(ivaFavorSAT):fmt(ivaNetaSAT)}</td></tr>`;
-    if((r.ivaAcredComb||0)>0){
-      h+=`<tr class="sub"><td style="color:var(--warn)">⛽ IVA combustibles (captura manual en SAT — Art.5 LIVA)</td><td style="color:var(--warn)">−${fmt(r.ivaAcredComb)}</td></tr>`;
-      const ivaConComb = Math.max(0, (r.ivaTrasI||0) - (r.ivaRetI||0) - (r.ivaAcred||0));
-      const ivaFavConComb = Math.max(0, (r.ivaRetI||0) + (r.ivaAcred||0) - (r.ivaTrasI||0));
-      h+=`<tr style="font-weight:600"><td style="padding:7px 11px;color:var(--accent2)">IVA a pagar (total con combustibles)</td><td style="text-align:right;font-family:var(--mono);font-weight:600;color:${ivaFavConComb>0?'var(--accent)':'var(--danger)'};">${ivaFavConComb>0?'FAV '+fmt(ivaFavConComb):fmt(ivaConComb)}</td></tr>`;
-    }
+    // Un solo resultado: IVA a cargo con todo el IVA acreditable (incluye combustibles)
+    h+=`<tr class="tot"><td>${(r.ivaF||0)>0?'IVA a favor del mes':'IVA a cargo del mes'}</td><td class="${(r.ivaF||0)>0?'pos':'neg'}">${(r.ivaF||0)>0?fmt(r.ivaF):fmt(r.ivaP)}</td></tr>`;
+    if(typeof fkRenglonesSaldoIVA==='function') h+=fkRenglonesSaldoIVA(r,c);
     h+=`</table>`;
+    if((r.ivaAcredComb||0)>0) h+=`<div class="iva-nota">Nota: el IVA acreditable incluye ${fmt(r.ivaAcredComb)} de IVA de combustibles.</div>`;
     if((r.cpOtroMes||[]).length>0){
       h+=`<div style="font-size:11px;color:var(--text2);margin-top:6px;padding:7px 10px;background:var(--surface2);border-radius:var(--r)">
         ℹ️ <strong>${r.cpOtroMes.length} complemento(s) de pago excluido(s)</strong> porque su FechaPago no corresponde al mes procesado:<br>
@@ -2933,23 +2933,16 @@ function genExcel(modo='mes'){
     ['Actividades exentas',...mesesRange.map(mes=>{const d=getMesData(mes);return d?+(d.ingEx||0).toFixed(2):null;})],
     ['IVA a cargo 16%',...mesesRange.map(mes=>{const d=getMesData(mes);return d?+(d.ivaTrasI||0).toFixed(2):null;})],
     ['(-) IVA retenido',...mesesRange.map(mes=>{const d=getMesData(mes);return d?+((d.ivaRetI||d.ivaRet||0)).toFixed(2):null;})],
-    ['(-) IVA acreditable (precarga SAT — sin combustibles)',...mesesRange.map(mes=>{const d=getMesData(mes);return d?+((d.ivaAcredSAT||d.ivaAcred||d.iva||0)).toFixed(2):null;})],
-    ['IVA a pagar (precarga SAT)',...mesesRange.map(mes=>{
-      const d=getMesData(mes);
-      if(!d) return null;
-      const cargo=Math.max(0,(d.ivaTrasI||0)-(d.ivaRetI||d.ivaRet||0)-(d.ivaAcredSAT||d.ivaAcred||0));
-      const favor=Math.max(0,(d.ivaRetI||d.ivaRet||0)+(d.ivaAcredSAT||d.ivaAcred||0)-(d.ivaTrasI||0));
-      return favor>0?+(-favor).toFixed(2):+cargo.toFixed(2);
-    }),...(modo==='acumulativo'?[mesesRange.reduce((s,mes)=>{const d=getMesData(mes);return s+(d?.iva||0);},0)]:[] )],
+    ['(-) IVA acreditable',...mesesRange.map(mes=>{const d=getMesData(mes);return d?+((d.ivaAcred||0)).toFixed(2):null;})],
+    ['IVA a cargo (a favor en negativo)',...mesesRange.map(mes=>{const d=getMesData(mes);if(!d)return null;
+      const v=(d.ivaTrasI||0)-(d.ivaRetI||d.ivaRet||0)-(d.ivaAcred||0); return +v.toFixed(2);})],
+    ['(-) Saldo a favor de periodos anteriores (Art.6 LIVA)',...mesesRange.map(mes=>{const d=getMesData(mes);return d?+((d.ivaSaldoTot||0)).toFixed(2):null;})],
+    ['IVA a pagar',...mesesRange.map(mes=>{const d=getMesData(mes);if(!d)return null;
+      return +((d.ivaPagar??Math.max(0,(d.ivaTrasI||0)-(d.ivaRetI||d.ivaRet||0)-(d.ivaAcred||0)))).toFixed(2);
+    }),...(modo==='acumulativo'?[mesesRange.reduce((s,mes)=>{const d=getMesData(mes);return s+(d?(d.ivaPagar??d.iva??0):0);},0)]:[] )],
     [],
   ];
-  if(r.ivaAcredComb>0){
-    ivaRows.push(['⛽ IVA combustibles — captura manual en SAT (Art.5 LIVA)',...mesesRange.map(mes=>mes===r.mes?+(r.ivaAcredComb||0).toFixed(2):null)]);
-    ivaRows.push(['IVA a pagar TOTAL (con combustibles)',...mesesRange.map(mes=>{
-      if(mes!==r.mes) return null;
-      return +Math.max(0,(r.ivaTrasI||0)-(r.ivaRetI||0)-(r.ivaAcred||0)).toFixed(2);
-    })]);
-  }
+  if(r.ivaAcredComb>0) ivaRows.push(['Nota: el IVA acreditable del mes incluye IVA de combustibles',...mesesRange.map(mes=>mes===r.mes?+(r.ivaAcredComb||0).toFixed(2):null)]);
   XLSX.utils.book_append_sheet(wb,ws(ivaRows),'PM IVA');
 
   // ── HOJA Ingresos ─────────────────────────────────────────
@@ -3441,7 +3434,7 @@ function renderClienteDashboard(){
     <button class="fc-btn" onclick="goClientePanel('excel-panel')">📊 Excel</button>
   </div>`;
 
-  cont.innerHTML=head+tiles+`<div class="fk-grid">${mesesHTML}${config}</div>`+fkComparativoIva(c,anio);
+  cont.innerHTML=head+tiles+`<div class="fk-grid">${mesesHTML}${config}</div>`+fkCardSaldosIVA(c)+fkComparativoIva(c,anio);
 }
 
 async function fkGuardarConfig(){
@@ -3506,6 +3499,97 @@ function fkSiguientePaso(r){
     </div></div>`;
 }
 
+
+
+// ── SALDOS A FAVOR DE IVA (art. 6 LIVA) ────────────────────────────────
+// El saldo a favor se acredita contra el IVA a cargo de los meses siguientes
+// hasta agotarlo, o se solicita en devolución (total). Si se pide devolución,
+// ese saldo ya no se acredita. Orígenes: (a) meses calculados en FiscoDesk con
+// IVA a favor; (b) saldos de periodos anteriores capturados a mano.
+function fkPerNum(a,m){ return a*12+m; }
+function fkSaldosIVA(c){
+  const out=[], dev=c.saldosIVADevol||{};
+  (c.saldosIVA||[]).forEach(x=>out.push({id:x.id,anio:+x.anio,mes:+x.mes,monto:+x.monto||0,origen:'manual',nota:x.nota||'',devol:!!dev[x.id]}));
+  window._historial.filter(h=>h.rfc===c.rfc&&(h.ivaF||0)>0.005).forEach(h=>{
+    if(out.some(x=>x.origen==='manual'&&x.anio===h.anio&&x.mes===h.mes)) return;
+    const id=`h_${h.anio}_${h.mes}_${h.rc}`;
+    out.push({id,anio:h.anio,mes:h.mes,monto:+h.ivaF,origen:'calculo',nota:'',devol:!!dev[id]});
+  });
+  return out.sort((a,b)=>fkPerNum(a.anio,a.mes)-fkPerNum(b.anio,b.mes));
+}
+function fkAplicadoDe(c,id,exA,exM,exRc){
+  return window._historial.filter(h=>h.rfc===c.rfc&&!(h.anio===exA&&h.mes===exM&&h.rc===exRc))
+    .reduce((s,h)=>s+(h.ivaSaldoAp||[]).filter(x=>x.id===id).reduce((t,x)=>t+(+x.monto||0),0),0);
+}
+function fkDisponiblesIVA(c,anio,mes,rc){
+  return fkSaldosIVA(c).filter(x=>!x.devol&&fkPerNum(x.anio,x.mes)<fkPerNum(anio,mes))
+    .map(x=>{const ap=fkAplicadoDe(c,x.id,anio,mes,rc); return {...x,aplicado:ap,rem:+(x.monto-ap).toFixed(2)};})
+    .filter(x=>x.rem>0.005);
+}
+function fkAplicarSaldoIVA(r,c,anio,mes,rc){
+  const cargo=+(r.ivaP||0); let pend=cargo; r.ivaSaldoAp=[];
+  const disp=fkDisponiblesIVA(c,anio,mes,rc);
+  for(const x of disp){ if(pend<=0.005) break; const m=Math.min(pend,x.rem); r.ivaSaldoAp.push({id:x.id,anio:x.anio,mes:x.mes,monto:+m.toFixed(2)}); pend-=m; }
+  r.ivaSaldoTot=+(cargo-pend).toFixed(2); r.ivaPagar=+Math.max(0,pend).toFixed(2);
+  r.ivaSaldoRemanente=+(disp.reduce((s,x)=>s+x.rem,0)-r.ivaSaldoTot).toFixed(2);
+}
+function fkRenglonesSaldoIVA(r,c){
+  if(c.iva==='no') return '';
+  const ap=r.ivaSaldoAp||[];
+  if(!ap.length) return (r.ivaSaldoRemanente>0&&(r.ivaF||0)>0)?`<tr class="sub"><td>Saldo a favor de periodos anteriores pendiente de acreditar <span class="art">Art.6 LIVA</span></td><td>${fmt(r.ivaSaldoRemanente)}</td></tr>`:'';
+  let h='';
+  ap.forEach(x=>{ h+=`<tr><td class="neg">(−) Saldo a favor de ${MF[x.mes-1]} ${x.anio} acreditado <span class="art">Art.6 LIVA</span></td><td class="neg">−${fmt(x.monto)}</td></tr>`; });
+  h+=`<tr class="tot"><td>IVA a pagar después de saldos a favor</td><td class="neg">${fmt(r.ivaPagar)}</td></tr>`;
+  h+=`<tr class="sub"><td>Saldo a favor que queda para meses siguientes</td><td>${fmt(Math.max(0,r.ivaSaldoRemanente||0))}</td></tr>`;
+  return h;
+}
+function fkCardSaldosIVA(c){
+  if(c.iva==='no') return '';
+  const xs=fkSaldosIVA(c);
+  const filas=xs.map(x=>{
+    const ap=fkAplicadoDe(c,x.id,-1,-1,'');
+    const rem=Math.max(0,x.monto-ap);
+    const usos=window._historial.filter(h=>h.rfc===c.rfc&&(h.ivaSaldoAp||[]).some(y=>y.id===x.id)).map(h=>MS[h.mes-1]+' '+h.anio).join(', ');
+    const est=x.devol?'<span class="cl-p cl-mut">Devolución</span>':rem<0.005?'<span class="cl-p cl-mut">Agotado</span>':'<span class="cl-p" style="background:#E3F5EE;color:#12806A">Disponible</span>';
+    return `<tr><td>${MF[x.mes-1]} ${x.anio}</td><td>${x.origen==='manual'?'Capturado':'Cálculo FiscoDesk'}${x.nota?' · '+fdEsc(x.nota):''}</td><td>${fmt(x.monto)}</td><td title="${usos}">${fmt(ap)}</td><td><b>${fmt(x.devol?0:rem)}</b></td><td>${est}</td>
+      <td style="white-space:nowrap"><button class="fk-lnk" onclick="fkToggleDevol('${x.id}')">${x.devol?'Quitar devolución':'Pedí devolución'}</button>${x.origen==='manual'?` <button class="fk-lnk" style="color:#B42318" onclick="fkBorrarSaldo('${x.id}')">Quitar</button>`:''}</td></tr>`;
+  }).join('');
+  const tot=xs.filter(x=>!x.devol).reduce((s,x)=>s+Math.max(0,x.monto-fkAplicadoDe(c,x.id,-1,-1,'')),0);
+  const hoy=new Date();
+  return `<div class="fc-card fk-cmp"><div class="fk-cardh"><h2>Saldos a favor de IVA</h2><span class="fc-tag fc-t-info">Art. 6 LIVA</span></div>
+    <div class="fc-meta" style="margin-bottom:8px">Se acreditan solos, del más antiguo al más reciente, contra el IVA a cargo de los meses siguientes hasta agotarse. Si pediste devolución de un saldo, márcalo y ya no se acredita. Disponible hoy: <b>${fmt(tot)}</b></div>
+    ${xs.length?`<div style="overflow-x:auto"><table class="fk-tab"><thead><tr><th>Periodo de origen</th><th>Origen</th><th>Saldo</th><th>Acreditado</th><th>Remanente</th><th>Estado</th><th></th></tr></thead><tbody>${filas}</tbody></table></div>`:'<div class="fc-meta">Sin saldos a favor registrados.</div>'}
+    <div class="fk-addsal"><b>Agregar saldo de un periodo anterior</b>
+      <select id="fks-mes" class="fc-sel">${MF.map((m,i)=>`<option value="${i+1}">${m}</option>`).join('')}</select>
+      <select id="fks-anio" class="fc-sel">${[hoy.getFullYear(),hoy.getFullYear()-1,hoy.getFullYear()-2,hoy.getFullYear()-3,hoy.getFullYear()-4].map(a=>`<option>${a}</option>`).join('')}</select>
+      <input id="fks-monto" class="fc-sel" type="number" step="0.01" min="0" placeholder="Remanente actual $">
+      <input id="fks-nota" class="fc-sel" placeholder="Nota (opcional)">
+      <button class="fc-btn pri" onclick="fkAgregarSaldo()">Agregar</button></div>
+    <div class="fc-meta">Captura el <b>remanente que aún no has acreditado</b> según tu última declaración. Después recalcula los meses siguientes para que se aplique.</div>
+  </div>`;
+}
+async function fkAgregarSaldo(){
+  const c=cliActivo; if(!c) return;
+  const monto=parseFloat(document.getElementById('fks-monto').value);
+  if(!(monto>0)){ toast('Captura el monto del saldo a favor','err'); return; }
+  const x={id:'m_'+Date.now(),anio:+document.getElementById('fks-anio').value,mes:+document.getElementById('fks-mes').value,monto:+monto.toFixed(2),nota:document.getElementById('fks-nota').value.trim()};
+  c.saldosIVA=[...(c.saldosIVA||[]),x];
+  try{ await window.dbSaveCli(c); toast('Saldo a favor guardado ☁️ · recalcula los meses siguientes'); }catch(err){ toast('Error al guardar: '+err.message,'err'); }
+  renderClienteDashboard();
+}
+async function fkBorrarSaldo(id){
+  const c=cliActivo; if(!c) return;
+  if(window._historial.some(h=>h.rfc===c.rfc&&(h.ivaSaldoAp||[]).some(y=>y.id===id))&&!confirm('Este saldo ya se acreditó en algún mes. ¿Quitarlo de todos modos? Recalcula esos meses después.')) return;
+  c.saldosIVA=(c.saldosIVA||[]).filter(x=>x.id!==id);
+  try{ await window.dbSaveCli(c); }catch(err){ toast('Error al guardar: '+err.message,'err'); }
+  renderClienteDashboard();
+}
+async function fkToggleDevol(id){
+  const c=cliActivo; if(!c) return;
+  c.saldosIVADevol={...(c.saldosIVADevol||{})}; if(c.saldosIVADevol[id]) delete c.saldosIVADevol[id]; else c.saldosIVADevol[id]=new Date().toISOString().slice(0,10);
+  try{ await window.dbSaveCli(c); }catch(err){ toast('Error al guardar: '+err.message,'err'); }
+  renderClienteDashboard();
+}
 
 // ── MARCAR DECLARACIÓN COMO PRESENTADA (desde cualquier pantalla) ───────
 function fkAbrirPresentar(rfc,anio,mes){
@@ -3748,7 +3832,7 @@ function fdEtapaCliente(c, anio, mes){
   const pres=(window._obligaciones||[]).find(o=>o.rfc===c.rfc&&o.estatus==='presentada'&&String(o.fechaVencimiento||'').startsWith(prefSig));
   if(pres) return {etapa:'term', nota:`Presentada${pres.fechaPresentacion?' el '+fmtFechaCorta(pres.fechaPresentacion):''}${pres.numOperacion?' · op. '+pres.numOperacion:''}`, tono:'ok'};
   if(calc.length){
-    const isr=calc.reduce((s,h)=>s+(h.isr||0),0), iva=calc.reduce((s,h)=>s+(h.iva||0),0);
+    const isr=calc.reduce((s,h)=>s+(h.isr||0),0), iva=calc.reduce((s,h)=>s+(h.ivaPagar??h.iva??0),0);
     return {etapa:'pres', nota:`ISR ${fmt(isr)}${c.iva==='no'?'':' · IVA '+fmt(iva)}`, tono:'muted'};
   }
   if(x===undefined) return {etapa:'desc', nota:'Revisando XML en la nube…', tono:'muted'};
