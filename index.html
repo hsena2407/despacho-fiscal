@@ -3536,11 +3536,15 @@ function fkAplicarSaldoIVA(r,c,anio,mes,rc){
 function fkRenglonesSaldoIVA(r,c){
   if(c.iva==='no') return '';
   const ap=r.ivaSaldoAp||[];
-  if(!ap.length) return (r.ivaSaldoRemanente>0&&(r.ivaF||0)>0)?`<tr class="sub"><td>Saldo a favor de periodos anteriores pendiente de acreditar <span class="art">Art.6 LIVA</span></td><td>${fmt(r.ivaSaldoRemanente)}</td></tr>`:'';
+  const btn=`<button class="fk-lnk" style="margin-left:8px" onclick="fkAbrirSaldoModal()">＋ Agregar saldo a favor</button>`;
+  if(!ap.length){
+    if((r.ivaF||0)>0) return (r.ivaSaldoRemanente>0)?`<tr class="sub"><td>Saldo a favor de periodos anteriores pendiente de acreditar <span class="art">Art.6 LIVA</span></td><td>${fmt(r.ivaSaldoRemanente)}</td></tr>`:'';
+    return `<tr><td>(−) Saldo a favor de periodos anteriores <span class="art">Art.6 LIVA</span>${btn}</td><td>$0.00</td></tr><tr class="tot"><td>IVA a pagar</td><td class="neg">${fmt(r.ivaP)}</td></tr>`;
+  }
   let h='';
   ap.forEach(x=>{ h+=`<tr><td class="neg">(−) Saldo a favor de ${MF[x.mes-1]} ${x.anio} acreditado <span class="art">Art.6 LIVA</span></td><td class="neg">−${fmt(x.monto)}</td></tr>`; });
   h+=`<tr class="tot"><td>IVA a pagar después de saldos a favor</td><td class="neg">${fmt(r.ivaPagar)}</td></tr>`;
-  h+=`<tr class="sub"><td>Saldo a favor que queda para meses siguientes</td><td>${fmt(Math.max(0,r.ivaSaldoRemanente||0))}</td></tr>`;
+  h+=`<tr class="sub"><td>Saldo a favor que queda para meses siguientes${btn}</td><td>${fmt(Math.max(0,r.ivaSaldoRemanente||0))}</td></tr>`;
   return h;
 }
 function fkCardSaldosIVA(c){
@@ -3568,6 +3572,42 @@ function fkCardSaldosIVA(c){
     <div class="fc-meta">Captura el <b>remanente que aún no has acreditado</b> según tu última declaración. Después recalcula los meses siguientes para que se aplique.</div>
   </div>`;
 }
+
+// Captura rápida de saldo a favor desde el cálculo del mes
+function fkAbrirSaldoModal(){
+  const c=cliActivo; if(!c) return;
+  const hoy=new Date(), m0=(lastRes&&lastRes.r&&lastRes.r.mes)||hoy.getMonth()+1, a0=(lastRes&&lastRes.r&&lastRes.r.anio)||hoy.getFullYear();
+  const prev=m0===1?{m:12,a:a0-1}:{m:m0-1,a:a0};
+  let ov=document.getElementById('fk-saldo-ov');
+  if(!ov){ ov=document.createElement('div'); ov.id='fk-saldo-ov'; ov.className='fk-ov'; ov.onclick=e=>{if(e.target===ov) ov.style.display='none';}; document.body.appendChild(ov); }
+  const anios=[a0,a0-1,a0-2,a0-3,a0-4];
+  ov.innerHTML=`<div class="fk-ov-box"><button class="fk-ov-x" onclick="document.getElementById('fk-saldo-ov').style.display='none'">✕</button>
+    <div class="fc-eyebrow">${fdEsc(c.rfc)}</div><h2 style="margin:2px 0 4px;font-size:18px">Saldo a favor de IVA</h2>
+    <div class="fc-meta" style="margin-bottom:12px">Captura el <b>remanente que aún no has acreditado</b>, según tu última declaración, y el mes en que se originó. Se acredita contra el IVA a cargo de los meses siguientes (art. 6 LIVA).</div>
+    <div class="fk-next" style="margin:0">
+      <div class="fk-2"><label>Mes de origen<select id="fksm-mes" class="fc-sel">${MF.map((m,i)=>`<option value="${i+1}" ${i+1===prev.m?'selected':''}>${m}</option>`).join('')}</select></label>
+        <label>Año<select id="fksm-anio" class="fc-sel">${anios.map(a=>`<option ${a===prev.a?'selected':''}>${a}</option>`).join('')}</select></label></div>
+      <label>Remanente pendiente de acreditar<input id="fksm-monto" class="fc-sel" type="number" step="0.01" min="0" placeholder="$0.00"></label>
+      <label>Nota (opcional)<input id="fksm-nota" class="fc-sel" placeholder="Ej. según declaración de septiembre"></label>
+      <div style="margin-top:10px"><button class="fc-btn pri" onclick="fkGuardarSaldoModal()">Guardar y recalcular</button></div>
+    </div></div>`;
+  ov.style.display='flex';
+  setTimeout(()=>document.getElementById('fksm-monto')?.focus(),50);
+}
+async function fkGuardarSaldoModal(){
+  const c=cliActivo; if(!c) return;
+  const monto=parseFloat(document.getElementById('fksm-monto').value);
+  if(!(monto>0)){ toast('Captura el monto del saldo a favor','err'); return; }
+  const anio=+document.getElementById('fksm-anio').value, mes=+document.getElementById('fksm-mes').value;
+  if(lastRes&&lastRes.r&&fkPerNum(anio,mes)>=fkPerNum(lastRes.r.anio,lastRes.r.mes)){ toast('El saldo debe ser de un mes anterior al que estás calculando','err'); return; }
+  c.saldosIVA=[...(c.saldosIVA||[]),{id:'m_'+Date.now(),anio,mes,monto:+monto.toFixed(2),nota:document.getElementById('fksm-nota').value.trim()}];
+  try{ await window.dbSaveCli(c); }catch(err){ toast('Error al guardar: '+err.message,'err'); return; }
+  document.getElementById('fk-saldo-ov').style.display='none';
+  toast('Saldo a favor guardado ☁️');
+  // Recalcular el mes en pantalla para aplicar el saldo y guardar el resultado
+  if(lastRes&&lastRes.r&&typeof procesar==='function'&&document.getElementById('resultados')?.style.display!=='none'){ try{ await procesar(); }catch(_){ } }
+}
+
 async function fkAgregarSaldo(){
   const c=cliActivo; if(!c) return;
   const monto=parseFloat(document.getElementById('fks-monto').value);
