@@ -404,6 +404,17 @@ input[type="checkbox"]{width:auto;cursor:pointer}
 .fk-kpis span{display:block;font-size:11px;color:#66758C}.fk-kpis b{font-family:var(--mono);font-size:14px}
 .fk-conf{display:flex;flex-direction:column;gap:10px}.fk-conf label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#4F5D75}
 .fk-conf .fc-sel{width:100%;box-sizing:border-box}.fk-conf .fk-chk{flex-direction:row;align-items:center;gap:8px;color:#14213A}
+.client-sidebar{display:none!important}.client-topbar{display:none!important}
+.fk-tabs{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:#fff;border-bottom:1px solid #E1E6EE;padding:8px 20px;position:sticky;top:0;z-index:5}
+.fk-tabs .fk-back{border:none;background:none;color:#1F5FBF;font-size:13px;cursor:pointer;padding:4px 0}
+.fk-who{display:flex;flex-direction:column;line-height:1.15;padding-right:10px;border-right:1px solid #E1E6EE}.fk-who b{font-size:13px}.fk-who span{font-family:var(--mono);font-size:10px;color:#66758C}
+.fk-tabs nav{display:flex;gap:2px;flex-wrap:wrap}
+.fk-tabs nav button{border:none;background:none;font-family:var(--sans);font-size:13px;color:#4F5D75;padding:7px 11px;border-radius:7px;cursor:pointer}
+.fk-tabs nav button:hover{background:#F0F3F8}.fk-tabs nav button.on{background:#14213A;color:#fff}
+#calc-panel .ph{display:none}#calc-panel #calc-panel-content>div:first-child>.fg:first-child{display:none}
+#calc-panel #proc-info>div:first-child{display:none}
+.fk-next{margin-top:18px;display:flex;flex-direction:column;gap:6px}.fk-next .fk-chk{display:flex;align-items:center;gap:8px;font-size:13px}
+.fk-next label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#4F5D75}
 .fk-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .fk-cmp{margin-top:16px}.fk-tab{width:100%;border-collapse:collapse;font-size:12px}
 .fk-tab th{text-align:right;font-weight:600;color:#4F5D75;border-bottom:1px solid #E1E6EE;padding:6px 8px}.fk-tab th:first-child,.fk-tab td:first-child{text-align:left}
@@ -588,6 +599,7 @@ body{background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt}
 
     <!-- Contenido del cliente -->
     <div class="client-main">
+      <div class="fk-tabs" id="fk-tabs"></div>
 
       <!-- PANEL: DASHBOARD DEL CLIENTE -->
       <div id="dash-panel" class="client-panel active">
@@ -2519,7 +2531,7 @@ function renderRes(r){
   h+=`<div class="tabs-wrap"><div class="tabs-res">${tabIVA}</div>`;
   h+=`<div id="tab-isr" class="tab-pane active">`;
   h+=`<div class="res-section"><div class="sec-title">Cálculo ISR — ${r.rl} <span class="art">${r.reg==='626'?'Art.113-E LISR':r.reg==='612'?'Art.100-106 LISR':'Art.114-116 LISR'}</span></div><table class="calc-table">`;
-  if(r.reg==='626'){h+=`<tr><td>Total ingresos cobrados del mes (sin IVA) <span class="art">Art.113-E LISR — incluye gravados y exentos IVA</span></td><td class="pos">${fmt(r.ingGrav)}</td></tr>${r.ingEx>0?`<tr class="sub"><td>De los cuales: gravados IVA 16%</td><td>${fmt(r.ingGravIVA)}</td></tr><tr class="sub"><td>De los cuales: exentos IVA (Art.15 LIVA)</td><td>${fmt(r.ingEx)}</td></tr>`:''}<tr><td>Tasa mensual — tabla Art.113-E LISR</td><td>${pct(r.tasa)}</td></tr><tr><td>ISR mensual (total ingresos × tasa)</td><td>${fmt(r.isrMens)}</td></tr><tr><td class="neg">(−) ISR retenido por PM <span class="art">Art.113-J LISR 1.25%</span></td><td class="neg">−${fmt(r.isrRetI)}</td></tr><tr class="tot"><td>ISR a pagar</td><td>${fmt(r.isrCargo)}</td></tr>`;}
+  if(r.reg==='626'){h+=`<tr><td>Total ingresos cobrados del mes (sin IVA) <span class="art">Art.113-E LISR — incluye gravados y exentos IVA</span></td><td class="pos">${fmt(r.ingGrav)}</td></tr>${r.ingEx>0?`<tr class="sub"><td>De los cuales: gravados IVA 16%</td><td>${fmt(r.ingGravIVA)}</td></tr><tr class="sub"><td>De los cuales: exentos IVA (Art.15 LIVA)</td><td>${fmt(r.ingEx)}</td></tr>`:''}<tr><td>Tasa mensual — tabla Art.113-E LISR</td><td>${pct(r.tasa)}</td></tr><tr><td>ISR mensual (total ingresos × tasa)</td><td>${fmt(r.isrMens)}</td></tr><tr><td class="neg">(−) ISR retenido por PM <span class="art">Art.113-J LISR 1.25%</span></td><td class="neg">−${fmt(r.isrRetI)}</td></tr><tr class="tot"><td>ISR a pagar</td><td>${fmt(r.isrCargo)}</td></tr>${(r.isrRetI||0)>(r.isrMens||0)?`<tr class="sub"><td>Excedente de ISR retenido sobre el ISR mensual <span class="art">no se compensa en el mes; considerarlo en la anual (Art.113-F LISR)</span></td><td>${fmt(r.isrRetI-r.isrMens)}</td></tr>`:''}`;}
   else if(r.reg==='612'){h+=`<tr><td>Ingresos del mes <span class="art">Art.102 LISR</span></td><td class="pos">${fmt(r.ingGrav)}</td></tr><tr><td class="neg">(−) Deducciones <span class="art">Art.103 LISR</span></td><td class="neg">−${fmt(r.gastoBase)}</td></tr><tr><td>Base gravable <span class="art">Art.106 LISR</span></td><td>${fmt(r.base)}</td></tr><tr><td>ISR tabla <span class="art">Art.96 LISR</span></td><td>${fmt(r.isrCalc)}</td></tr><tr><td class="neg">(−) ISR retenido</td><td class="neg">−${fmt(r.isrRetI)}</td></tr><tr class="tot"><td>ISR a pagar</td><td>${fmt(r.isrCargo)}</td></tr>`;}
   else{h+=`<tr><td>Renta cobrada <span class="art">Art.114 LISR</span></td><td class="pos">${fmt(r.ingGrav)}</td></tr><tr><td class="neg">(−) Deducción ciega 35% <span class="art">Art.115 párr.2</span></td><td class="neg">−${fmt(r.ded)}</td></tr><tr><td>Base gravable <span class="art">Art.116 LISR</span></td><td>${fmt(r.base)}</td></tr><tr><td>ISR tabla Art.96 (Art.116)</td><td>${fmt(r.isrCalc)}</td></tr><tr><td class="neg">(−) ISR retenido PM <span class="art">Art.116 párr.4 — 10%</span></td><td class="neg">−${fmt(r.isrRetI)}</td></tr><tr class="tot"><td>ISR a pagar</td><td>${fmt(r.isrCargo)}</td></tr>`;}
   h+=`</table></div>`;
@@ -2693,6 +2705,7 @@ function renderRes(r){
     <button class="btn" onclick="window.print()">🖨 Imprimir / PDF</button>
     <button class="btn" onclick="procesar()">↺ Recalcular</button>
   </div>`;
+  h+=fkSiguientePaso(r);
   document.getElementById('resultados').style.display='block';
   document.getElementById('resultados').innerHTML=h;
 }
@@ -3286,7 +3299,7 @@ function renderClienteDashboard(){
     <button class="fc-btn" onclick="goClientePanel('excel-panel')">📊 Excel</button>
   </div>`;
 
-  cont.innerHTML=head+acc+tiles+`<div class="fk-grid">${mesesHTML}${config}</div>`+fkComparativoIva(c,anio);
+  cont.innerHTML=head+tiles+`<div class="fk-grid">${mesesHTML}${config}</div>`+fkComparativoIva(c,anio);
 }
 
 async function fkGuardarConfig(){
@@ -3313,6 +3326,68 @@ async function fkToggleConc(anio,mes){
   if(c.conciliaciones[k]) delete c.conciliaciones[k]; else c.conciliaciones[k]=new Date().toISOString().slice(0,10);
   renderClienteDashboard();
   try{ await window.dbSaveCli(c); }catch(err){ toast('Error al guardar conciliación: '+err.message,'err'); }
+}
+
+
+// ── NUEVA INTERFAZ · PASO 3: CÁLCULO DENTRO DE LA FICHA ─────────────────
+// Pestañas de la ficha (sustituyen la barra lateral de iconos) y cierre del
+// cálculo: marcar ISR/IVA/DIOT como presentadas desde el resultado del mes.
+const FK_TABS=[['dash-panel','Resumen'],['calc-panel','Calcular'],['cfdi-panel','CFDI'],['xml-panel','XML'],['oblig-panel','Obligaciones'],['cumplim-panel','e.firma, CSD y avisos'],['notas-panel','Notas'],['excel-panel','Excel'],['hist-panel','Historial'],['legal-panel','Legal'],['usuarios-panel','Usuarios']];
+function fkRenderTabs(activo){
+  const bar=document.getElementById('fk-tabs'); if(!bar) return;
+  const map={'dash-panel':'cs-dash','cfdi-panel':'cs-cfdi','calc-panel':'cs-calc','excel-panel':'cs-excel','xml-panel':'cs-xml','oblig-panel':'cs-oblig','cumplim-panel':'cs-cumplim','notas-panel':'cs-notas','hist-panel':'cs-hist','legal-panel':'cs-legal','usuarios-panel':'cs-usuarios'};
+  const tabs=FK_TABS.filter(([id])=>{const b=document.getElementById(map[id]); return !b||b.style.display!=='none';});
+  const c=cliActivo;
+  bar.innerHTML=`<button class="fk-back" onclick="goHome()">← Clientes</button>
+    ${c?`<div class="fk-who"><b>${fdEsc(c.nombre)}</b><span>${fdEsc(c.rfc)}</span></div>`:''}
+    <nav>${tabs.map(([id,l])=>`<button class="${id===activo?'on':''}" onclick="goClientePanel('${id}')">${l}</button>`).join('')}</nav>`;
+}
+
+function fkSiguientePaso(r){
+  const c=cliActivo; if(!c||!r) return '';
+  const mes=r.mes||mesActivo, anio=r.anio||parseInt(document.getElementById('sel-anio')?.value||new Date().getFullYear());
+  if(!mes||!anio) return '';
+  const R=fkReglas(c), sig=fdSigMes(anio,mes);
+  const v17=fdHabil(fdISO(sig.anio,sig.mes,17));
+  const ult=new Date(sig.anio,sig.mes,0).getDate(), vDiot=fdHabil(fdISO(sig.anio,sig.mes,ult));
+  const ya=re=>fkPresentada(c,anio,mes,re,[1]);
+  const fila=(id,l,venc,re,on)=>{const p=ya(re); return `<label class="fk-chk"><input type="checkbox" id="fkp-${id}" ${p?'disabled checked':on?'checked':''}> ${l} <span class="fk-m">· vence ${fmtFechaCorta(venc)}${p?' · ya presentada':''}</span></label>`;};
+  return `<div class="fc-card fk-next"><div class="fk-cardh"><h2>Siguiente paso · ${MF[mes-1]} ${anio}</h2></div>
+    <div class="fc-meta" style="margin-bottom:8px">Cuando presentes en el portal del SAT, márcalo aquí. Se registra en Obligaciones y se palomea en el Resumen.</div>
+    ${fila('isr','ISR mensual',v17,/ISR/i,true)}
+    ${R.iva?fila('iva','IVA mensual',v17,/IVA/i,true):''}
+    ${R.diot.ob?fila('diot','DIOT',vDiot,/DIOT/i,false):''}
+    <div class="fk-2" style="margin-top:8px"><label>Fecha de presentación<input type="date" id="fkp-fecha" class="fc-sel" value="${new Date().toISOString().slice(0,10)}"></label>
+      <label>Número de operación<input id="fkp-op" class="fc-sel" placeholder="Del acuse del SAT"></label></div>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+      <button class="fc-btn pri" onclick="fkMarcarPresentadas(${anio},${mes})">✓ Marcar como presentadas</button>
+      <button class="fc-btn" onclick="goClientePanel('dash-panel')">Ir al resumen</button>
+    </div></div>`;
+}
+
+async function fkMarcarPresentadas(anio,mes){
+  const c=cliActivo; if(!c) return;
+  const sig=fdSigMes(anio,mes);
+  const v17=fdHabil(fdISO(sig.anio,sig.mes,17));
+  const ult=new Date(sig.anio,sig.mes,0).getDate(), vDiot=fdHabil(fdISO(sig.anio,sig.mes,ult));
+  const fecha=document.getElementById('fkp-fecha')?.value||new Date().toISOString().slice(0,10);
+  const op=(document.getElementById('fkp-op')?.value||'').trim();
+  const pend=[['isr','ISR mensual',v17,/ISR/i],['iva','IVA mensual',v17,/IVA/i],['diot','DIOT',vDiot,/DIOT/i]]
+    .filter(([id])=>{const x=document.getElementById('fkp-'+id); return x&&x.checked&&!x.disabled;});
+  if(!pend.length){ toast('No hay obligaciones por marcar','err'); return; }
+  try{
+    for(const [id,tipo,venc,re] of pend){
+      const mk=venc.slice(0,7);
+      let o=(window._obligaciones||[]).find(x=>x.rfc===c.rfc&&re.test(x.tipo||'')&&String(x.fechaVencimiento||'').startsWith(mk));
+      if(o){ o={...o,estatus:'presentada',fechaPresentacion:fecha,numOperacion:op||o.numOperacion||''}; }
+      else o={rfc:c.rfc,cliente:c.nombre,tipo,periodicidad:'mensual',fechaVencimiento:venc,estatus:'presentada',fechaPresentacion:fecha,numOperacion:op,notas:`Periodo ${MF[mes-1]} ${anio}`};
+      await window.dbSaveObligacion(o);
+      const i=window._obligaciones.findIndex(x=>x.id===o.id);
+      if(i>=0) window._obligaciones[i]=o; else window._obligaciones.push(o);
+    }
+    toast(`${pend.length} obligación(es) marcadas como presentadas ☁️`);
+    if(lastRes&&lastRes.r) renderRes(lastRes.r);
+  }catch(err){ toast('Error al guardar: '+err.message,'err'); }
 }
 
 // Días inhábiles (art. 12 CFF + regla 2.1.6 fr. II RMF 2026, Cuarta RM DOF 30-oct-2026).
@@ -3424,7 +3499,12 @@ window.goClientePanel = function(id){
   const ctb=document.querySelector('.client-topbar'); if(ctb) ctb.style.display=(id==='dash-panel')?'none':'';
   if(id==='dash-panel'&&typeof renderClienteDashboard==='function') renderClienteDashboard();
   if(id==='cfdi-panel'&&typeof renderCFDIPanel==='function') renderCFDIPanel();
-  if(id==='calc-panel'&&typeof fillSel==='function') fillSel();
+  if(id==='calc-panel'&&typeof fillSel==='function'){
+    fillSel();
+    const sc=document.getElementById('sel-cli');
+    if(cliActivo&&sc&&sc.value!==cliActivo.rfc){ const reg=regActivo; sc.value=cliActivo.rfc; onCliChange(); if(reg&&document.getElementById('rt-'+reg)) selReg(reg); }
+  }
+  if(typeof fkRenderTabs==='function') fkRenderTabs(id);
   if(id==='oblig-panel'&&typeof renderObligacionesCliente==='function') renderObligacionesCliente();
   if(id==='cumplim-panel'&&typeof renderCumplimientoCliente==='function') renderCumplimientoCliente();
   if(id==='notas-panel'&&typeof renderNotasCliente==='function') renderNotasCliente();
