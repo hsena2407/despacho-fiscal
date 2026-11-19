@@ -1524,6 +1524,7 @@ window.renderCli = function(){
       const cs=fkTileVence('csd'); if(cs.cls==='bad') pend.push(['bad','CSD vencido']); else if(cs.cls==='warn') pend.push(['warn','CSD '+cs.v.toLowerCase()]);
       cliActivo=prev; }
     fkCanceladosDespues(c).forEach(x=>pend.push(['bad',`${MS[x.mes-1]}: ${x.n} CFDI cancelado(s)`]));
+    fkCPsPendientes(c).forEach(x=>pend.push(['warn',`${MS[x.mes-1]}: complemento sin considerar`]));
     if(c.opinion32D&&c.opinion32D.estatus==='negativa') pend.push(['bad','32-D negativa']);
     if(c.buzon&&c.buzon.estatus==='no') pend.push(['bad','Buzón no habilitado']);
     if(c.r626&&typeof fkTileLimite==='function'){ const l=fkTileLimite(c,per.anio); if(l.cls==='bad'||l.cls==='warn') pend.push([l.cls,l.v]); }
@@ -2006,7 +2007,8 @@ function renderMesGrid(){
   mg.innerHTML=MS.map((m,i)=>{
     const n=i+1, h=hs.find(x=>x.mes===n), nube=window._cxNube[`${cliActivo.rfc}_${anio}_${n}`];
     const cx=h?fkCanceladosDespues(cliActivo).find(y=>y.anio===anio&&y.mes===n&&y.rc===h.rc):null;
-    const st=cx?`<b style="color:#B42318">⚠ ${cx.n} CFDI cancelado(s)</b><span>Recalcular${cx.pres?' · complementaria':''}</span>`:h?`<b class="ok">✓ Calculado</b><span>ISR ${fmt(h.isr||0)}${cliActivo.iva==='no'?'':' · IVA '+fmt(h.ivaPagar??h.iva??0)}</span>`
+    const cpp=h&&!cx?fkCPsPendientes(cliActivo).find(y=>y.anio===anio&&y.mes===n):null;
+    const st=cx?`<b style="color:#B42318">⚠ ${cx.n} CFDI cancelado(s)</b><span>Recalcular${cx.pres?' · complementaria':''}</span>`:cpp?`<b style="color:#9A5B00">⚠ Complemento sin considerar</b><span>Recalcular${cpp.pres?' · complementaria':''}</span>`:h?`<b class="ok">✓ Calculado</b><span>ISR ${fmt(h.isr||0)}${cliActivo.iva==='no'?'':' · IVA '+fmt(h.ivaPagar??h.iva??0)}</span>`
       :nube&&(nube.e||nube.r)?`<b class="info">☁ XML listos</b><span>↑${nube.e} ↓${nube.r}</span>`:`<b class="mut">Sin calcular</b><span>&nbsp;</span>`;
     return `<button class="cx-mes ${mesActivo===n?'on':''}" onclick="selMes(${n})"><em>${MF[i]}</em>${st}</button>`;
   }).join('');
@@ -2019,7 +2021,7 @@ function renderMesGrid(){
   const nubeTxt=nube===undefined?'Revisando XML en la nube…':(nube.e||nube.r)?`En la nube: ${nube.e} emitidos · ${nube.r} recibidos`:'No hay XML de este mes en la nube. Descárgalos con el Conector o súbelos desde tu computadora.';
   const hay=nube&&(nube.e||nube.r);
   acc.innerHTML=`<div class="cx-acc">
-    <div><b>${h?'Este mes ya está calculado':'Listo para calcular'}</b>${(()=>{const x=h?fkCanceladosDespues(cliActivo).find(y=>y.anio===anio&&y.mes===mesActivo&&y.rc===h.rc):null;return x?`<p style="color:#B42318;font-weight:600">⚠ ${fkTextoCanc(x)}</p>`:''})()}<p>${nubeTxt}${h&&h.recalculos?` · ${h.recalculos} recálculo(s)`:''}</p></div>
+    <div><b>${h?'Este mes ya está calculado':'Listo para calcular'}</b>${(()=>{const x=h?fkCanceladosDespues(cliActivo).find(y=>y.anio===anio&&y.mes===mesActivo&&y.rc===h.rc):null;const y=h?fkCPsPendientes(cliActivo).find(z=>z.anio===anio&&z.mes===mesActivo):null;return (x?`<p style="color:#B42318;font-weight:600">⚠ ${fkTextoCanc(x)}</p>`:'')+(y?`<p style="color:#9A5B00;font-weight:600">⚠ ${fkTextoCP(y)}</p>`:'')})()}<p>${nubeTxt}${h&&h.recalculos?` · ${h.recalculos} recálculo(s)`:''}</p></div>
     <div class="cx-btns">
       ${hay||nube===undefined?`<button class="fc-btn pri" onclick="cargarXMLsYRecalcular()">${h?'↺ Recalcular con XML de la nube':'☁ Calcular con XML de la nube'}</button>`:''}
       ${h?`<button class="fc-btn" onclick="verHistorialMes('${cliActivo.rfc}',${mesActivo},${anio},'${reg}')">Ver cálculo guardado</button>`:''}
@@ -2313,6 +2315,7 @@ async function cargarXMLsGuardados(){
   const anio=parseInt(document.getElementById('sel-anio').value);
   const rfc=cliActivo.rfc;
   let cargados=0;
+  xmlEmitidos=[]; xmlRecibidos=[]; // no arrastrar XML del mes que se vio antes
   for(const tipo of['e','r']){
     const id=`${rfc}_${anio}_${mesActivo}_${tipo}`;
     try{
@@ -2324,7 +2327,26 @@ async function cargarXMLsGuardados(){
       }
     }catch(e){}
   }
-  if(cargados>0){toast('☁ '+cargados+' XML cargados desde la nube');}
+  // Complementos de pago emitidos el mes siguiente con fecha de pago de este mes (regla 2.7.1.32 RMF:
+  // se expiden a más tardar el día 5 del mes siguiente al pago). El ingreso/IVA es del mes del pago.
+  let extra=0; window._cpMesSig=new Set();
+  try{
+    const sig=fdSigMes(anio,mesActivo);
+    for(const tipo of['e','r']){
+      const data=await window.dbGetXML(`${rfc}_${sig.anio}_${sig.mes}_${tipo}`);
+      const lista=tipo==='e'?xmlEmitidos:xmlRecibidos;
+      const ya=new Set(lista.map(f=>String(parseXML(f.text,f.name).uuid||'').toUpperCase()));
+      (data?.archivos||[]).forEach(f=>{
+        const x=parseXML(f.text,f.name);
+        if(x.err||x.tipo!=='P') return;
+        const u=String(x.uuid||'').toUpperCase(); if(ya.has(u)) return;
+        if(!(x.pagos||[]).some(pg=>{const d=new Date(pg.fecha);return d.getMonth()+1===mesActivo&&d.getFullYear()===anio;})) return;
+        lista.push(f); window._cpMesSig.add(u); extra++;
+      });
+    }
+  }catch(e){}
+  cargados+=extra;
+  if(cargados>0){toast('☁ '+cargados+' XML cargados desde la nube'+(extra?` (incluye ${extra} complemento(s) del mes siguiente con pago de este mes)`:''));}
   else{toast('Sin XML guardados para este mes','err');}
 }
 
@@ -2392,7 +2414,11 @@ function parseXML(text,name){ // text = raw XML string
     let ivaTras=0,ivaRet=0,isrRet=0,ivaEx=0;
     if(imp)ivaTras=parseFloat(imp.getAttribute('TotalImpuestosTrasladados')||0);
     doc.querySelectorAll('Comprobante > Impuestos > Retenciones > Retencion').forEach(r=>{const co=r.getAttribute('Impuesto'),m=parseFloat(r.getAttribute('Importe')||0);if(co==='001')isrRet+=m;if(co==='002')ivaRet+=m;});
-    doc.querySelectorAll('Traslado').forEach(t=>{if(t.getAttribute('TipoFactor')==='Exento')ivaEx+=parseFloat(t.getAttribute('Base')||0);});
+    { // Exentos de IVA: se toma el resumen del comprobante; si no viene, se suman los conceptos (antes se sumaban ambos)
+      const nivelC=[...doc.querySelectorAll('Comprobante > Impuestos > Traslados > Traslado')];
+      const fuente=nivelC.length?nivelC:[...doc.querySelectorAll('Concepto Traslado')];
+      fuente.forEach(t=>{if(t.getAttribute('TipoFactor')==='Exento')ivaEx+=parseFloat(t.getAttribute('Base')||0);});
+    }
     const conceptos=[...doc.querySelectorAll('Concepto')].map(x=>x.getAttribute('Descripcion')).join(' | ');
     const esNom=!!(doc.querySelector('nomina12\\:Nomina,Nomina')||tipo==='N');
     // Serie, folio y forma de pago
@@ -2401,44 +2427,40 @@ function parseXML(text,name){ // text = raw XML string
     const forma=c.getAttribute('FormaPago')||'';
     // Para complementos de pago: leer FormaDePagoP e ImporteP del IVA
     let formaPagoP='', ivaImporteP=0, fechaPagoP='';
+    let pagos=[];
     if(tipo==='P'){
-      // Los nodos de complemento están en namespace Pagos20
-      // querySelector no funciona con namespaces — usar getElementsByTagNameNS o iteración
-      // Use getElementsByTagNameNS for Pagos20 namespace nodes
-      const NS_P20 = 'http://www.sat.gob.mx/Pagos20';
-      // Try namespace-aware first
-      let pagoEls = doc.getElementsByTagNameNS(NS_P20, 'Pago');
-      if(!pagoEls || pagoEls.length===0) pagoEls = doc.getElementsByTagName('Pago');
-      if(!pagoEls || pagoEls.length===0) {
-        // fallback: iterate all
-        pagoEls = [...doc.querySelectorAll('*')].filter(e=>e.localName==='Pago');
+      // Complemento de pago 2.0 (Pagos20). Por cada <Pago>: fecha, forma, monto, impuestos
+      // (ImpuestosP: BaseP sin IVA) y documentos pagados (IdDocumento).
+      const byLocal=(root,n)=>[...root.getElementsByTagName('*')].filter(e=>e.localName===n);
+      const num=v=>parseFloat(v||0)||0;
+      byLocal(doc,'Pago').forEach(el=>{
+        const tc=num(el.getAttribute('TipoCambioP'))||1;
+        const pg={fecha:el.getAttribute('FechaPago')||'',forma:el.getAttribute('FormaDePagoP')||'',monto:num(el.getAttribute('Monto'))*tc,
+          base16:0,iva16:0,base0:0,exento:0,iva:0,retIVA:0,retISR:0,docs:[]};
+        byLocal(el,'DoctoRelacionado').forEach(d=>pg.docs.push({id:String(d.getAttribute('IdDocumento')||'').toUpperCase(),pagado:num(d.getAttribute('ImpPagado'))}));
+        let hayImp=false;
+        byLocal(el,'TrasladoP').forEach(t=>{
+          if(t.getAttribute('ImpuestoP')!=='002') return; hayImp=true;
+          const base=num(t.getAttribute('BaseP'))*tc, imp=num(t.getAttribute('ImporteP'))*tc, fac=t.getAttribute('TipoFactorP'), tasa=num(t.getAttribute('TasaOCuotaP'));
+          if(fac==='Exento') pg.exento+=base; else if(tasa===0) pg.base0+=base; else { pg.base16+=base; pg.iva16+=imp; }
+          pg.iva+=imp;
+        });
+        byLocal(el,'RetencionP').forEach(r=>{ hayImp=true; const imp=num(r.getAttribute('ImporteP'))*tc; if(r.getAttribute('ImpuestoP')==='001') pg.retISR+=imp; else if(r.getAttribute('ImpuestoP')==='002') pg.retIVA+=imp; });
+        pg.base=hayImp?(pg.base16+pg.base0+pg.exento):pg.monto; // sin desglose de impuestos: el monto es la base
+        pagos.push(pg);
+      });
+      // Respaldo para complementos sin nodos <Pago> legibles: usar Totales
+      if(!pagos.length){
+        const t=byLocal(doc,'Totales')[0];
+        if(t) pagos.push({fecha:'',forma:'',monto:num(t.getAttribute('MontoTotalPagos')),base16:num(t.getAttribute('TotalTrasladosBaseIVA16')),iva16:num(t.getAttribute('TotalTrasladosImpuestoIVA16')),
+          base0:num(t.getAttribute('TotalTrasladosBaseIVA0')),exento:num(t.getAttribute('TotalTrasladosBaseIVAExento')),iva:num(t.getAttribute('TotalTrasladosImpuestoIVA16')),
+          retIVA:num(t.getAttribute('TotalRetencionesIVA')),retISR:num(t.getAttribute('TotalRetencionesISR')),docs:[],base:0});
+        if(pagos[0]) pagos[0].base=pagos[0].base16+pagos[0].base0+pagos[0].exento||pagos[0].monto;
       }
-      [...pagoEls].forEach(el=>{
-        if(!formaPagoP) formaPagoP=el.getAttribute('FormaDePagoP')||'';
-        if(!fechaPagoP) fechaPagoP=el.getAttribute('FechaPago')||'';
-        const monto=parseFloat(el.getAttribute('Monto')||0);
-        if(monto>0) sub=monto;
-      });
-      // TrasladoP
-      let trasEls = doc.getElementsByTagNameNS(NS_P20,'TrasladoP');
-      if(!trasEls||trasEls.length===0) trasEls=doc.getElementsByTagName('TrasladoP');
-      if(!trasEls||trasEls.length===0) trasEls=[...doc.querySelectorAll('*')].filter(e=>e.localName==='TrasladoP');
-      [...trasEls].forEach(t=>{
-        if(t.getAttribute('ImpuestoP')==='002')
-          ivaImporteP+=parseFloat(t.getAttribute('ImporteP')||0);
-      });
-      // Totales
-      let totEls = doc.getElementsByTagNameNS(NS_P20,'Totales');
-      if(!totEls||totEls.length===0) totEls=doc.getElementsByTagName('Totales');
-      if(!totEls||totEls.length===0) totEls=[...doc.querySelectorAll('*')].filter(e=>e.localName==='Totales');
-      [...totEls].forEach(el=>{
-        const baseIVA=parseFloat(el.getAttribute('TotalTrasladosBaseIVA16')||0);
-        const ivaTotal=parseFloat(el.getAttribute('TotalTrasladosImpuestoIVA16')||0);
-        if(baseIVA>0 && sub===0) sub=baseIVA;
-        if(ivaTotal>0 && ivaImporteP===0) ivaImporteP=ivaTotal;
-      });
-      // Log for debug
-      console.debug('CP parsed: fechaPagoP='+fechaPagoP+' formaPagoP='+formaPagoP+' sub='+sub+' ivaImporteP='+ivaImporteP);
+      // Campos compatibles con el resto de la app (suma de todos los pagos)
+      fechaPagoP=pagos[0]?.fecha||''; formaPagoP=pagos[0]?.forma||'';
+      sub=pagos.reduce((x,pg)=>x+pg.base,0); ivaImporteP=pagos.reduce((x,pg)=>x+pg.iva,0);
+      ivaEx=pagos.reduce((x,pg)=>x+pg.exento,0); ivaRet=pagos.reduce((x,pg)=>x+pg.retIVA,0); isrRet=pagos.reduce((x,pg)=>x+pg.retISR,0);
     }
     // Detectar si es CFDI de combustible (ClaveProdServ gasolina/diesel)
     const claveProd = doc.querySelector('Concepto')?.getAttribute('ClaveProdServ')||'';
@@ -2446,7 +2468,7 @@ function parseXML(text,name){ // text = raw XML string
     const esCombustible = CLAVES_COMB_P.includes(claveProd);
     // Detectar complemento HidroYPetro en el XML
     const tieneHidro = !!doc.querySelector('HidroYPetro') || text.includes('HidroYPetro') || text.includes('hidrocarburospetroliferos');
-    return{name,uuid,tipo,fecha,serie,folio,sub,total,rfcE,nomE,rfcR,nomR,regimenR,usoCFDI,ivaTras,ivaRet,isrRet,ivaEx,metodo,forma,formaPagoP,ivaImporteP,fechaPagoP,conceptos,esNom,esCombustible,tieneHidro,claveProd,err:false};
+    return{name,uuid,tipo,fecha,serie,folio,sub,total,rfcE,nomE,rfcR,nomR,regimenR,usoCFDI,ivaTras,ivaRet,isrRet,ivaEx,metodo,forma,formaPagoP,ivaImporteP,fechaPagoP,pagos,conceptos,esNom,esCombustible,tieneHidro,claveProd,err:false};
   }catch{return{err:true,name};}
 }
 
@@ -2491,47 +2513,58 @@ async function procesar(){
   // Función: ¿el CFDI PPD tiene complemento de pago en este mes?
   // Para INGRESOS: cualquier forma de pago es válida (efectivo, transferencia, etc.)
   // Art.113-E LISR: ingresos efectivamente cobrados sin restricción de forma
+  // Pagos de un complemento que caen en el mes procesado (un complemento puede traer varios pagos)
+  const enMes=f=>{ if(!f) return false; const d=new Date(f); return d.getMonth()+1===mesActivo&&d.getFullYear()===anio; };
+  const pagosDelMes=cp=>(cp.pagos&&cp.pagos.length?cp.pagos:[{fecha:cp.fechaPagoP,base:cp.sub,iva:cp.ivaImporteP,exento:cp.ivaEx,retIVA:cp.ivaRet,retISR:cp.isrRet,docs:[]}]).filter(pg=>enMes(pg.fecha));
+  // ¿Esta factura PPD fue pagada (total o parcialmente) con un complemento cuyo pago cae en el mes?
   function ppd_tiene_cp(cfdi){
-    return compPagoEmit.some(cp=>{
-      if(!cp.fechaPagoP) return false;
-      const fpMes = new Date(cp.fechaPagoP).getMonth()+1;
-      const fpAnio = new Date(cp.fechaPagoP).getFullYear();
-      return fpMes===mesActivo && fpAnio===anio;
-      // Nota: para ingresos NO se restringe por forma de pago
-      // La restricción de efectivo solo aplica para DEDUCCIONES (gastos)
-    });
+    const u=String(cfdi.uuid||'').toUpperCase();
+    return compPagoEmit.some(cp=>pagosDelMes(cp).some(pg=>(pg.docs||[]).some(d=>d.id===u)));
   }
+  // Complementos: sumar solo los pagos del mes
+  const plazoCP=f=>{ const d=new Date(f); const m=d.getMonth()+2, a=d.getFullYear()+(m>12?1:0); return new Date(a,(m>12?m-12:m)-1,5,23,59,59); }; // día 5 del mes siguiente al pago
+  const cpAtrasados=[];
+  [...todosEmit.filter(x=>x.tipo==='P').map(x=>({x,t:'e'})),...recib.filter(x=>x.tipo==='P').map(x=>({x,t:'r'}))].forEach(({x,t})=>{
+    const ps=(x.pagos||[]).filter(pg=>pg.fecha);
+    x.fueraPlazo=ps.some(pg=>new Date(x.fecha)>plazoCP(pg.fecha));
+    x.mesesPago=[...new Set(ps.map(pg=>{const d=new Date(pg.fecha);return d.getFullYear()*100+d.getMonth()+1;}))];
+    // Emitido en este mes pero con pago(s) de un mes anterior: corresponde a ese mes
+    ps.filter(pg=>{const d=new Date(pg.fecha);return d.getFullYear()*12+d.getMonth()+1<anio*12+mesActivo;}).forEach(pg=>{
+      const d=new Date(pg.fecha); const k={u:String(x.uuid||'').toUpperCase(),t,anio:d.getFullYear(),mes:d.getMonth()+1};
+      if(!cpAtrasados.some(y=>y.u===k.u&&y.anio===k.anio&&y.mes===k.mes)) cpAtrasados.push(k);
+    });
+  });
+  todosEmit.filter(x=>x.tipo==='P').forEach(cp=>{
+    const pm=pagosDelMes(cp);
+    cp.subMes=pm.reduce((a,pg)=>a+(pg.base||0),0); cp.ivaMes=pm.reduce((a,pg)=>a+(pg.iva||0),0);
+    cp.enMes=pm.length>0; cp.exMes=pm.reduce((a,pg)=>a+(pg.exento||0),0); cp.retIVAMes=pm.reduce((a,pg)=>a+(pg.retIVA||0),0); cp.retISRMes=pm.reduce((a,pg)=>a+(pg.retISR||0),0);
+  });
 
   // Filtrar ingresos según reglas
   const emit = todosEmit.filter(x=>{
-    if(x.tipo==='P'){
-      // Complemento de pago emitido por el cliente: FechaPago debe ser del mes
-      if(!x.fechaPagoP) return false;
-      const fpMes=new Date(x.fechaPagoP).getMonth()+1;
-      const fpAnio=new Date(x.fechaPagoP).getFullYear();
-      return fpMes===mesActivo && fpAnio===anio;
-    }
+    if(x.tipo==='P') return pagosDelMes(x).length>0; // Complemento con pago en el mes
     if(x.tipo==='I'){
-      if(x.metodo==='PUE') return true;  // Cobrado de inmediato
-      if(x.metodo==='PPD') return ppd_tiene_cp(x); // Solo si hay CP del mes
-      return true;
+      if(x.metodo==='PPD') return false; // El ingreso de una PPD entra por su complemento de pago (no se cuenta dos veces)
+      return true;  // PUE: cobrado en el mes de su fecha
     }
     return false;
   });
 
   // Separar para mostrar en tabla: PUE normales y CPs de ingresos
-  const emitPPDsinCP = todosEmit.filter(x=>x.tipo==='I'&&x.metodo==='PPD'&&!ppd_tiene_cp(x));
+  const emitPPDsinCP = todosEmit.filter(x=>x.tipo==='I'&&x.metodo==='PPD');
+  emitPPDsinCP.forEach(x=>{ x.cobradoCP=ppd_tiene_cp(x); });
   // ingTotal = todos los ingresos del mes (base ISR RESICO Art.113-E — sin distinción gravado/exento IVA)
   // ingGravIVA = solo los gravados para IVA | ingEx = exentos IVA
   let ingTotal=0,ingGravIVA=0,ingEx=0,ivaTrasI=0,ivaRetI=0,isrRetI=0;
   emit.forEach(x=>{
     if(x.tipo==='P'){
       // Complemento de pago emitido: usar ivaImporteP para IVA, sub para base
-      ingTotal+=x.sub;
-      ingGravIVA+=x.sub;
-      ivaTrasI+=x.ivaImporteP||0;
-      ivaRetI+=x.ivaRet||0;
-      isrRetI+=x.isrRet||0;
+      ingTotal+=x.subMes;
+      ingGravIVA+=x.subMes-x.exMes;
+      ingEx+=x.exMes;
+      ivaTrasI+=x.ivaMes;
+      ivaRetI+=x.retIVAMes;
+      isrRetI+=x.retISRMes;
     } else {
       ingTotal+=x.sub;
       ingGravIVA+=x.sub-x.ivaEx;
@@ -2587,7 +2620,7 @@ async function procesar(){
   // IVA acreditable total (incluye combustibles — contribuyente tiene derecho)
   let gastoBase=0,ivaAcred=0;
   gastosDeducibles.forEach(x=>{
-    gastoBase += x.tipo==='P' ? 0 : x.sub;
+    gastoBase += x.sub; // en complementos de pago, x.sub = base pagada sin IVA
     ivaAcred += ivaDeducibleDe(x);
   });
   // IVA precarga SAT (excluye ClaveProdServ de combustibles — sistema SAT no los precarga)
@@ -2622,12 +2655,13 @@ async function procesar(){
   }
   if(cliActivo.rSal&&noms.length)r.salInfo={total:noms.reduce((s,x)=>s+x.sub,0),isrRet:noms.reduce((s,x)=>s+x.isrRet,0),n:noms.length};
   if(cliActivo.iva!=='no'&&typeof fkAplicarSaldoIVA==='function') fkAplicarSaldoIVA(r,cliActivo,anio,mesActivo,reg);
-  r.cancEmit=cancEmit;r.cancRecib=cancRecib;
+  r.cancEmit=cancEmit;r.cancRecib=cancRecib;r.cpAtrasados=cpAtrasados;
   r.mes=mesActivo;r.anio=anio;r.cpOtroMes=cpOtroMes;r.emitPPDsinCP=emitPPDsinCP||[];r.ivaAcredSAT=ivaAcredSAT;r.ivaAcredComb=ivaAcredComb;r.gastosDedComb=gastosDedComb;
   const entry={rfc,nom:cliActivo.nombre,mes:mesActivo,anio,rc:reg,rl:r.rl,isr:r.isrCargo||0,iva:r.ivaP||0,fecha:new Date().toISOString(),
     ingGrav:+(r.ingGrav||0).toFixed(2),ingGravIVA:+((r.ingGravIVA??r.ingGrav)||0).toFixed(2),ingEx:+(r.ingEx||0).toFixed(2),
     ivaTrasI:+(r.ivaTrasI||0).toFixed(2),ivaRetI:+(r.ivaRetI||0).toFixed(2),ivaAcred:+((r.ivaPropAcred||r.ivaAcred)||0).toFixed(2),ivaF:+(r.ivaF||0).toFixed(2),isrRetI:+(r.isrRetI||0).toFixed(2),
     ivaSaldoAp:r.ivaSaldoAp||[],ivaSaldoTot:r.ivaSaldoTot||0,ivaPagar:(r.ivaPagar??(r.ivaP||0)),
+    cpOtrosMeses:r.cpAtrasados||[],
     uuidsE:(r.emit||[]).map(x=>String(x.uuid||'').toUpperCase()).filter(Boolean),uuidsR:(r.gastosDeducibles||[]).map(x=>String(x.uuid||'').toUpperCase()).filter(Boolean)};
   try{
     // Verificar si ya existe para incrementar contador de recálculos
@@ -2672,6 +2706,14 @@ function renderRes(r){
     <div style="font-size:11pt">${r.rl} | ${mesL}</div>
     <div style="font-size:8.5pt;color:#555">Fundamento: ${r.reg==='626'?'Art.113-E, 113-J LISR':r.reg==='612'?'Art.100-106 LISR':'Art.114-116 LISR'} | ${c.iva==='no'?'Art.15-XIV LIVA (exento)':'Art.1o., 5o. LIVA'} | RMF 2026</div>
   </div>`;
+  if((r.cpAtrasados||[]).length){
+    const meses=[...new Set(r.cpAtrasados.map(y=>MF[y.mes-1]+' '+y.anio))];
+    h+=`<div class="alert a-warn">⚠ <div><strong>${r.cpAtrasados.length} complemento(s) de pago emitido(s) este mes con pago de ${meses.join(', ')}</strong>. No se suman aquí: van en el mes del pago. FiscoDesk los toma al calcular ese mes; si ya estaba calculado, te avisará para recalcularlo.</div></div>`;
+  }
+  {
+    const fp=[...(r.emit||[]),...(r.gastosDeducibles||[])].filter(x=>x.tipo==='P'&&x.fueraPlazo);
+    if(fp.length) h+=`<div class="alert a-info">ℹ <div><strong>${fp.length} complemento(s) de pago emitido(s) después del día 5 del mes siguiente al pago</strong> (regla 2.7.1.32 RMF 2026). Sí se consideran en el mes del pago; revisa con quien los emitió.</div></div>`;
+  }
   if((r.cancEmit||[]).length||(r.cancRecib||[]).length){
     const nE=(r.cancEmit||[]).length,nR=(r.cancRecib||[]).length;
     h+=`<div class="alert a-warn">⚠ <div><strong>${nE+nR} CFDI cancelado(s) en el SAT no se consideraron</strong>${nE?` · ${nE} emitido(s) por ${fmt(r.cancEmit.reduce((s,x)=>s+(x.sub||0),0))}`:''}${nR?` · ${nR} recibido(s) por ${fmt(r.cancRecib.reduce((s,x)=>s+(x.sub||0),0))}`:''}. Aparecen tachados en las tablas.</div></div>`;
@@ -2743,10 +2785,8 @@ function renderRes(r){
   ${emitOrd.map(x=>{
     // Determinar si este CFDI cuenta como ingreso cobrado
     const canc=fkEsCancelado(x.uuid);
-    const cobrado = canc?false:x.tipo==='P'
-      ? (x.fechaPagoP && new Date(x.fechaPagoP).getMonth()+1===r.mes && new Date(x.fechaPagoP).getFullYear()===r.anio)
-      : (x.metodo==='PUE' || (x.metodo==='PPD' && (r.emitPPDsinCP||[]).indexOf(x)===-1));
-    const razonNoCobrado = canc ? 'Cancelado — no se considera' : x.tipo==='P' ? 'CP otro mes' : x.metodo==='PPD' ? 'PPD — pendiente cobro' : '';
+    const cobrado = canc?false:x.tipo==='P' ? !!x.enMes : x.metodo!=='PPD';
+    const razonNoCobrado = canc ? 'Cancelado — no se considera' : x.tipo==='P' ? ('Pago de '+(x.mesesPago||[]).map(k=>MS[k%100-1]+' '+Math.floor(k/100)).join(', ')+' — va en ese mes') : x.metodo==='PPD' ? (x.cobradoCP?'PPD — cobrada vía complemento':'PPD — pendiente de cobro') : '';
     const fechaShow = x.tipo==='P'&&x.fechaPagoP ? x.fechaPagoP.substring(0,10) : x.fecha?.substring(0,10)||'—';
     const metBg = x.tipo==='P' ? 'rgba(0,150,100,.12)' : x.metodo==='PUE' ? 'rgba(0,102,204,.1)' : 'rgba(255,179,71,.1)';
     const metCol = x.tipo==='P' ? '#00aa66' : x.metodo==='PUE' ? 'var(--accent)' : 'var(--warn)';
@@ -2754,7 +2794,7 @@ function renderRes(r){
     return `<tr style="${cobrado?'':'opacity:.45'}${canc?';text-decoration:line-through':''}">
       <td style="white-space:nowrap;font-size:10px">
         ${fechaShow}
-        ${x.tipo==='P'?'<div style="font-size:8px;color:#00aa66;font-weight:600">Complemento cobrado</div>':''}
+        ${x.tipo==='P'?`<div style="font-size:8px;color:#00aa66;font-weight:600">Fecha de pago</div><div style="font-size:8px;color:var(--text3)">Emitido ${x.fecha?.substring(0,10)||''}</div>${(window._cpMesSig||new Set()).has(String(x.uuid||'').toUpperCase())?'<div style="font-size:8px;color:#1F5FBF;font-weight:600">Del mes siguiente</div>':''}${x.fueraPlazo?'<div style="font-size:8px;color:#B42318;font-weight:600" title="Regla 2.7.1.32 RMF 2026: a más tardar el día 5 del mes siguiente al pago">Fuera de plazo</div>':''}`:''}
       </td>
       <td style="font-family:var(--mono);font-size:10px;white-space:nowrap">${(x.serie||'')} ${(x.folio||'')}</td>
       <td><div style="font-family:var(--mono);font-size:10px">${x.rfcR||x.rfcE||'—'}</div><div style="font-size:10px;color:var(--text2)">${(x.nomR||x.nomE||'').substring(0,22)}</div></td>
@@ -2766,20 +2806,20 @@ function renderRes(r){
         ${cobrado?'':'<div style="font-size:8px;color:var(--warn)">'+razonNoCobrado+'</div>'}
       </td>
       <td style="font-size:10px;white-space:nowrap">${fD(x.tipo==='P'?x.formaPagoP:x.forma)}</td>
-      <td class="num" style="color:${cobrado?'inherit':'var(--text3)'}">${fmt(x.tipo==='P'?x.sub:x.sub)}</td>
-      <td class="num" style="color:${cobrado?'inherit':'var(--text3)'}">${fmt(x.tipo==='P'?(x.ivaImporteP||0):x.ivaTras)}</td>
-      <td class="num" style="color:${x.ivaRet>0?'var(--danger)':'var(--text3)'}">${x.ivaRet>0?fmt(x.ivaRet):'—'}</td>
-      <td class="num" style="color:${x.isrRet>0?'var(--danger)':'var(--text3)'}">${x.isrRet>0?fmt(x.isrRet):'—'}</td>
-      <td class="num" style="font-weight:600;color:${cobrado?'inherit':'var(--text3)'}">${fmt(x.tipo==='P'?(x.sub+(x.ivaImporteP||0)):x.total)}</td>
+      <td class="num" style="color:${cobrado?'inherit':'var(--text3)'}">${fmt(x.tipo==='P'?(x.subMes??x.sub):x.sub)}</td>
+      <td class="num" style="color:${cobrado?'inherit':'var(--text3)'}">${fmt(x.tipo==='P'?(x.ivaMes??x.ivaImporteP??0):x.ivaTras)}</td>
+      <td class="num" style="color:${(x.tipo==='P'?x.retIVAMes:x.ivaRet)>0?'var(--danger)':'var(--text3)'}">${(x.tipo==='P'?x.retIVAMes:x.ivaRet)>0?fmt(x.tipo==='P'?x.retIVAMes:x.ivaRet):'—'}</td>
+      <td class="num" style="color:${(x.tipo==='P'?x.retISRMes:x.isrRet)>0?'var(--danger)':'var(--text3)'}">${(x.tipo==='P'?x.retISRMes:x.isrRet)>0?fmt(x.tipo==='P'?x.retISRMes:x.isrRet):'—'}</td>
+      <td class="num" style="font-weight:600;color:${cobrado?'inherit':'var(--text3)'}">${fmt(x.tipo==='P'?((x.subMes??x.sub)+(x.ivaMes??0)-(x.retIVAMes||0)-(x.retISRMes||0)):x.total)}</td>
     </tr>`;
   }).join('')}
   </tbody><tfoot><tr style="font-weight:600;background:var(--surface2)">
     <td colspan="8" style="font-family:var(--mono);font-size:10px;padding:6px 8px">COBRADOS (${r.emit.length}) / TOTAL ${todosParaTabla.length}${(r.cancEmit||[]).length?' · CANCELADOS '+r.cancEmit.length:''}</td>
-    <td class="num">${fmt(r.emit.reduce((s,x)=>s+(x.tipo==='P'?x.sub:x.sub),0))}</td>
-    <td class="num">${fmt(r.emit.reduce((s,x)=>s+(x.tipo==='P'?(x.ivaImporteP||0):x.ivaTras),0))}</td>
-    <td class="num">${fmt(r.emit.reduce((s,x)=>s+(x.ivaRet||0),0))}</td>
-    <td class="num">${fmt(r.emit.reduce((s,x)=>s+(x.isrRet||0),0))}</td>
-    <td class="num">${fmt(r.emit.reduce((s,x)=>s+(x.tipo==='P'?x.sub+(x.ivaImporteP||0):x.total),0))}</td>
+    <td class="num">${fmt(r.emit.reduce((s,x)=>s+(x.tipo==='P'?(x.subMes??x.sub):x.sub),0))}</td>
+    <td class="num">${fmt(r.emit.reduce((s,x)=>s+(x.tipo==='P'?(x.ivaMes??0):x.ivaTras),0))}</td>
+    <td class="num">${fmt(r.emit.reduce((s,x)=>s+(x.tipo==='P'?(x.retIVAMes||0):(x.ivaRet||0)),0))}</td>
+    <td class="num">${fmt(r.emit.reduce((s,x)=>s+(x.tipo==='P'?(x.retISRMes||0):(x.isrRet||0)),0))}</td>
+    <td class="num">${fmt(r.emit.reduce((s,x)=>s+(x.tipo==='P'?(x.subMes??x.sub)+(x.ivaMes??0)-(x.retIVAMes||0)-(x.retISRMes||0):x.total),0))}</td>
   </tr></tfoot></table></div></div>`;
 
   // PPD no cobrados ya se muestran en la tabla principal con opacity baja
@@ -2844,7 +2884,7 @@ function renderRes(r){
         ${razones.join(', ')}
         ${x.esCombustible?`<span style="color:var(--warn);font-size:9px;margin-left:3px">⛽${x.tieneHidro?'✓':''}</span>`:''}
       </td>
-      <td class="num" style="color:${ded?'inherit':'var(--danger)'}">${fmt(x.tipo==='P'?0:x.sub)}</td>
+      <td class="num" style="color:${ded?'inherit':'var(--danger)'}">${fmt(x.sub)}</td>
       <td class="num" style="color:${ded?'var(--accent)':'var(--danger)'}">
         ${fmt(ivaShow)}${x.tipo==='P'&&ivaShow>0?'<span style="font-size:8px;color:var(--accent)"> CP</span>':''}
       </td>
@@ -2852,7 +2892,7 @@ function renderRes(r){
   }).join('')}
   </tbody><tfoot>
     <tr style="font-weight:600;background:var(--surface2)"><td colspan="8" style="font-family:var(--mono);font-size:10px;padding:6px 8px">DEDUCIBLES (${gd.length})</td>
-      <td class="num">${fmt(gd.reduce((s,x)=>s+(x.tipo==='P'?0:x.sub),0))}</td>
+      <td class="num">${fmt(gd.reduce((s,x)=>s+x.sub,0))}</td>
       <td class="num" style="color:var(--accent)">${fmt(gd.reduce((s,x)=>s+(x.tipo==='P'?(x.ivaImporteP||0):x.ivaTras),0))}</td>
     </tr>
     ${gnd.length?`<tr style="opacity:.5"><td colspan="8" style="font-family:var(--mono);font-size:10px;padding:6px 8px">NO DEDUCIBLES (${gnd.length})</td>
@@ -2994,7 +3034,7 @@ function genExcel(modo='mes'){
       x.metodo||'',x.forma||'',x.usoCFDI||'',x.regimenR||'','NO',0]),
   ];
   const gTotDed=+gDed.reduce((s,x)=>s+(x.tipo==='P'?x.ivaImporteP||0:x.ivaTras),0).toFixed(2);
-  const gSubDed=+gDed.reduce((s,x)=>s+(x.tipo==='P'?0:x.sub),0).toFixed(2);
+  const gSubDed=+gDed.reduce((s,x)=>s+x.sub,0).toFixed(2);
   const gTotNoD=[`NO DEDUCIBLES (${gNoDed.length})`,'','','','',
     +gNoDed.reduce((s,x)=>s+x.sub,0).toFixed(2),0,
     +gNoDed.reduce((s,x)=>s+x.ivaTras,0).toFixed(2),'','','','','','',0];
@@ -3418,7 +3458,7 @@ function renderClienteDashboard(){
       <div class="fk-ob">${cols.map(([k,l])=>{
         const s=st[k]; const click=k==='conc'&&s!=='fut'?` onclick="fkToggleConc(${anio},${n})" style="cursor:pointer"`:'';
         return `<span class="s-${s}" title="${l}: ${tip[s]||''}"${click}><em>${ico[s]}</em>${l}</span>`;}).join('')}</div>
-      ${(()=>{const x=fkCanceladosDespues(c).find(y=>y.anio===anio&&y.mes===n);return x?`<div class="fk-canc" title="${fkTextoCanc(x)}">⚠ ${x.n} CFDI cancelado(s) · recalcular</div>`:''})()}
+      ${(()=>{const x=fkCanceladosDespues(c).find(y=>y.anio===anio&&y.mes===n);const y=fkCPsPendientes(c).find(z=>z.anio===anio&&z.mes===n);return (x?`<div class="fk-canc" title="${fkTextoCanc(x)}">⚠ ${x.n} CFDI cancelado(s) · recalcular</div>`:'')+(y?`<div class="fk-canc" style="background:#FFF4E0;color:#9A5B00" title="${fkTextoCP(y)}">⚠ Complemento sin considerar · recalcular</div>`:'')})()}
       ${(st.isr==='calc'||st.iva==='calc')?`<button class="fk-pres" onclick="fkAbrirPresentar('${c.rfc}',${anio},${n})">✓ Marcar presentada</button>`:''}
     </div>`;
   }).join('');
@@ -3679,6 +3719,21 @@ function fkCanceladosDespues(c){
   });
   return out.sort((a,b)=>a.anio-b.anio||a.mes-b.mes);
 }
+
+// Complementos emitidos en un mes posterior con pago de un mes ya calculado que no los incluyó
+function fkCPsPendientes(c){
+  const hs=window._historial.filter(h=>h.rfc===c.rfc), out=[];
+  hs.forEach(h=>(h.cpOtrosMeses||[]).forEach(k=>{
+    const dest=hs.find(z=>z.anio===k.anio&&z.mes===k.mes); if(!dest) return; // sin calcular: lo tomará al calcularlo
+    const usados=k.t==='r'?(dest.uuidsR||[]):(dest.uuidsE||[]);
+    if(!dest.uuidsE) return; // cálculo anterior a esta versión: no hay con qué comparar
+    if(usados.includes(k.u)) return;
+    let o=out.find(y=>y.anio===k.anio&&y.mes===k.mes); if(!o){ o={anio:k.anio,mes:k.mes,n:0,pres:!!fkPresentada(c,k.anio,k.mes,/ISR|IVA/i,[1])}; out.push(o); }
+    o.n++;
+  }));
+  return out.sort((a,b)=>a.anio-b.anio||a.mes-b.mes);
+}
+function fkTextoCP(x){ return `${x.n} complemento(s) de pago emitido(s) después, con pago de este mes · ${x.pres?'recalcular y presentar complementaria':'recalcular'}`; }
 function fkTextoCanc(x){
   const p=[]; if(x.e.length) p.push(`${x.e.length} emitido(s)`); if(x.r.length) p.push(`${x.r.length} recibido(s)`);
   return `${p.join(' y ')} cancelado(s) después del cálculo · ${x.pres?'recalcular y presentar complementaria':'recalcular'}`;
@@ -3958,6 +4013,9 @@ function fdAtencion(){
     const cli=(window._clientes.find(c=>c.rfc===a.rfc)||{}).nombre||a.cliente||a.rfc||'';
     items.push({sev:d!==null&&d<0?0:3,tag:'AVISO',cls:d!==null&&d<0?'bad':'info',t:`${a.descripcion||'Aviso pendiente'}${cli?' · '+cli:''}`,d:a.fechaLimite?`Límite ${fmtFechaCorta(a.fechaLimite)}`:'Sin fecha límite',ord:d??999});
   });
+  (window._clientes||[]).forEach(c=>{ fkCPsPendientes(c).forEach(x=>{
+    items.push({sev:0,tag:'COMPLEMENTO',cls:'warn',t:`${c.nombre} · ${MF[x.mes-1]} ${x.anio}`,d:fkTextoCP(x),ord:-1});
+  }); });
   (window._clientes||[]).forEach(c=>{ fkCanceladosDespues(c).forEach(x=>{
     items.push({sev:0,tag:'CANCELADO',cls:'bad',t:`${c.nombre} · ${MF[x.mes-1]} ${x.anio}`,d:fkTextoCanc(x),ord:-1});
   }); });
