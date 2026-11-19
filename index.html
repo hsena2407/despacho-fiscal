@@ -108,6 +108,8 @@ window.dbLoad = async () => {
       getDocs(collection(db, "notas"))
     ]);
     oSnap.forEach(d => window._obligaciones.push(d.data()));
+    try{ const esSnap=await getDocs(collection(db,"estatus_cfdi")); window._estatusCFDI={}; esSnap.forEach(d=>{const x=d.data(); window._estatusCFDI[String(x.uuid||d.id).toUpperCase()]=x;}); }
+    catch(e2){ window._estatusCFDI={}; console.warn('No se pudo leer estatus_cfdi (reglas de Firestore):',e2); }
     eSnap.forEach(d => window._efirmaCsd.push(d.data()));
     aSnap.forEach(d => window._avisos.push(d.data()));
     nSnap.forEach(d => window._notas.push(d.data()));
@@ -484,6 +486,9 @@ input[type="checkbox"]{width:auto;cursor:pointer}
 .fk-next label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#4F5D75}.fk-next label.fk-chk{flex-direction:row;align-items:center;gap:8px;font-size:13px;color:#14213A}
 .fk-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .iva-nota{font-size:11px;color:#66758C;margin-top:6px;padding:0 2px}
+.st-sat{display:inline-block;font-size:9px;font-weight:600;font-family:var(--mono);padding:2px 6px;border-radius:4px;white-space:nowrap;text-decoration:none}
+.st-vig{background:#E3F5EE;color:#12806A}.st-can{background:#FDECEA;color:#B42318}.st-sv{background:#F0F2F5;color:#8A97AD}
+.fk-canc{margin:0 8px 6px;font-size:11px;font-weight:600;color:#B42318;background:#FDECEA;border-radius:6px;padding:4px 6px}
 .fk-lnk{border:none;background:none;color:#1F5FBF;font-size:12px;cursor:pointer;padding:0;font-family:var(--sans)}
 .fk-addsal{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 6px;padding-top:12px;border-top:1px solid #EDF0F5}
 .fk-addsal b{font-size:13px;width:100%}.fk-addsal .fc-sel{width:auto;min-width:110px}
@@ -1518,6 +1523,7 @@ window.renderCli = function(){
       const ef=fkTileVence('efirma'); if(ef.cls==='bad') pend.push(['bad','e.firma vencida']); else if(ef.cls==='warn') pend.push(['warn','e.firma '+ef.v.toLowerCase()]);
       const cs=fkTileVence('csd'); if(cs.cls==='bad') pend.push(['bad','CSD vencido']); else if(cs.cls==='warn') pend.push(['warn','CSD '+cs.v.toLowerCase()]);
       cliActivo=prev; }
+    fkCanceladosDespues(c).forEach(x=>pend.push(['bad',`${MS[x.mes-1]}: ${x.n} CFDI cancelado(s)`]));
     if(c.opinion32D&&c.opinion32D.estatus==='negativa') pend.push(['bad','32-D negativa']);
     if(c.buzon&&c.buzon.estatus==='no') pend.push(['bad','Buzón no habilitado']);
     if(c.r626&&typeof fkTileLimite==='function'){ const l=fkTileLimite(c,per.anio); if(l.cls==='bad'||l.cls==='warn') pend.push([l.cls,l.v]); }
@@ -1999,7 +2005,8 @@ function renderMesGrid(){
   mg.className='cx-meses';
   mg.innerHTML=MS.map((m,i)=>{
     const n=i+1, h=hs.find(x=>x.mes===n), nube=window._cxNube[`${cliActivo.rfc}_${anio}_${n}`];
-    const st=h?`<b class="ok">✓ Calculado</b><span>ISR ${fmt(h.isr||0)}${cliActivo.iva==='no'?'':' · IVA '+fmt(h.ivaPagar??h.iva??0)}</span>`
+    const cx=h?fkCanceladosDespues(cliActivo).find(y=>y.anio===anio&&y.mes===n&&y.rc===h.rc):null;
+    const st=cx?`<b style="color:#B42318">⚠ ${cx.n} CFDI cancelado(s)</b><span>Recalcular${cx.pres?' · complementaria':''}</span>`:h?`<b class="ok">✓ Calculado</b><span>ISR ${fmt(h.isr||0)}${cliActivo.iva==='no'?'':' · IVA '+fmt(h.ivaPagar??h.iva??0)}</span>`
       :nube&&(nube.e||nube.r)?`<b class="info">☁ XML listos</b><span>↑${nube.e} ↓${nube.r}</span>`:`<b class="mut">Sin calcular</b><span>&nbsp;</span>`;
     return `<button class="cx-mes ${mesActivo===n?'on':''}" onclick="selMes(${n})"><em>${MF[i]}</em>${st}</button>`;
   }).join('');
@@ -2012,7 +2019,7 @@ function renderMesGrid(){
   const nubeTxt=nube===undefined?'Revisando XML en la nube…':(nube.e||nube.r)?`En la nube: ${nube.e} emitidos · ${nube.r} recibidos`:'No hay XML de este mes en la nube. Descárgalos con el Conector o súbelos desde tu computadora.';
   const hay=nube&&(nube.e||nube.r);
   acc.innerHTML=`<div class="cx-acc">
-    <div><b>${h?'Este mes ya está calculado':'Listo para calcular'}</b><p>${nubeTxt}${h&&h.recalculos?` · ${h.recalculos} recálculo(s)`:''}</p></div>
+    <div><b>${h?'Este mes ya está calculado':'Listo para calcular'}</b>${(()=>{const x=h?fkCanceladosDespues(cliActivo).find(y=>y.anio===anio&&y.mes===mesActivo&&y.rc===h.rc):null;return x?`<p style="color:#B42318;font-weight:600">⚠ ${fkTextoCanc(x)}</p>`:''})()}<p>${nubeTxt}${h&&h.recalculos?` · ${h.recalculos} recálculo(s)`:''}</p></div>
     <div class="cx-btns">
       ${hay||nube===undefined?`<button class="fc-btn pri" onclick="cargarXMLsYRecalcular()">${h?'↺ Recalcular con XML de la nube':'☁ Calcular con XML de la nube'}</button>`:''}
       ${h?`<button class="fc-btn" onclick="verHistorialMes('${cliActivo.rfc}',${mesActivo},${anio},'${reg}')">Ver cálculo guardado</button>`:''}
@@ -2463,8 +2470,12 @@ async function procesar(){
   const anio=parseInt(document.getElementById('sel-anio').value);
   const rfc=cliActivo.rfc;
   // Parsear emitidos y recibidos por separado
-  const todosEmit=xmlEmitidos.map(f=>parseXML(f.text,f.name)).filter(x=>!x.err);
-  const recib=xmlRecibidos.map(f=>parseXML(f.text,f.name)).filter(x=>!x.err);
+  const todosEmit0=xmlEmitidos.map(f=>parseXML(f.text,f.name)).filter(x=>!x.err);
+  const recib0=xmlRecibidos.map(f=>parseXML(f.text,f.name)).filter(x=>!x.err);
+  // CFDI cancelados en el SAT (según la verificación del Conector): no entran al cálculo
+  const cancEmit=todosEmit0.filter(x=>fkEsCancelado(x.uuid)), cancRecib=recib0.filter(x=>fkEsCancelado(x.uuid));
+  const todosEmit=todosEmit0.filter(x=>!fkEsCancelado(x.uuid));
+  const recib=recib0.filter(x=>!fkEsCancelado(x.uuid));
   const noms=recib.filter(x=>x.esNom||x.tipo==='N');
 
   // ── REGLA INGRESOS COBRADOS (igual que SAT) ──────────────────────────
@@ -2611,11 +2622,13 @@ async function procesar(){
   }
   if(cliActivo.rSal&&noms.length)r.salInfo={total:noms.reduce((s,x)=>s+x.sub,0),isrRet:noms.reduce((s,x)=>s+x.isrRet,0),n:noms.length};
   if(cliActivo.iva!=='no'&&typeof fkAplicarSaldoIVA==='function') fkAplicarSaldoIVA(r,cliActivo,anio,mesActivo,reg);
+  r.cancEmit=cancEmit;r.cancRecib=cancRecib;
   r.mes=mesActivo;r.anio=anio;r.cpOtroMes=cpOtroMes;r.emitPPDsinCP=emitPPDsinCP||[];r.ivaAcredSAT=ivaAcredSAT;r.ivaAcredComb=ivaAcredComb;r.gastosDedComb=gastosDedComb;
   const entry={rfc,nom:cliActivo.nombre,mes:mesActivo,anio,rc:reg,rl:r.rl,isr:r.isrCargo||0,iva:r.ivaP||0,fecha:new Date().toISOString(),
     ingGrav:+(r.ingGrav||0).toFixed(2),ingGravIVA:+((r.ingGravIVA??r.ingGrav)||0).toFixed(2),ingEx:+(r.ingEx||0).toFixed(2),
     ivaTrasI:+(r.ivaTrasI||0).toFixed(2),ivaRetI:+(r.ivaRetI||0).toFixed(2),ivaAcred:+((r.ivaPropAcred||r.ivaAcred)||0).toFixed(2),ivaF:+(r.ivaF||0).toFixed(2),isrRetI:+(r.isrRetI||0).toFixed(2),
-    ivaSaldoAp:r.ivaSaldoAp||[],ivaSaldoTot:r.ivaSaldoTot||0,ivaPagar:(r.ivaPagar??(r.ivaP||0))};
+    ivaSaldoAp:r.ivaSaldoAp||[],ivaSaldoTot:r.ivaSaldoTot||0,ivaPagar:(r.ivaPagar??(r.ivaP||0)),
+    uuidsE:(r.emit||[]).map(x=>String(x.uuid||'').toUpperCase()).filter(Boolean),uuidsR:(r.gastosDeducibles||[]).map(x=>String(x.uuid||'').toUpperCase()).filter(Boolean)};
   try{
     // Verificar si ya existe para incrementar contador de recálculos
     const existing=window._historial.find(h=>h.rfc===rfc&&h.mes===mesActivo&&h.anio===anio&&h.rc===reg);
@@ -2659,6 +2672,10 @@ function renderRes(r){
     <div style="font-size:11pt">${r.rl} | ${mesL}</div>
     <div style="font-size:8.5pt;color:#555">Fundamento: ${r.reg==='626'?'Art.113-E, 113-J LISR':r.reg==='612'?'Art.100-106 LISR':'Art.114-116 LISR'} | ${c.iva==='no'?'Art.15-XIV LIVA (exento)':'Art.1o., 5o. LIVA'} | RMF 2026</div>
   </div>`;
+  if((r.cancEmit||[]).length||(r.cancRecib||[]).length){
+    const nE=(r.cancEmit||[]).length,nR=(r.cancRecib||[]).length;
+    h+=`<div class="alert a-warn">⚠ <div><strong>${nE+nR} CFDI cancelado(s) en el SAT no se consideraron</strong>${nE?` · ${nE} emitido(s) por ${fmt(r.cancEmit.reduce((s,x)=>s+(x.sub||0),0))}`:''}${nR?` · ${nR} recibido(s) por ${fmt(r.cancRecib.reduce((s,x)=>s+(x.sub||0),0))}`:''}. Aparecen tachados en las tablas.</div></div>`;
+  }
   // Alertas de combustible
   const cfdisComb = (r.gastosDeducibles||[]).filter(x=>x.esCombustible);
   if(cfdisComb.length>0){
@@ -2710,7 +2727,7 @@ function renderRes(r){
   if(r.salInfo){h+=`<div class="res-section"><div class="sec-title">Sueldos y Salarios <span class="art">Art.94-96 LISR</span></div><div class="alert a-info">ℹ ISR retenido por el patrón (Art.96). Régimen independiente del RESICO.</div><table class="calc-table"><tr><td>CFDI nómina recibidos</td><td>${r.salInfo.n}</td></tr><tr><td>Total percepciones</td><td class="pos">${fmt(r.salInfo.total)}</td></tr><tr class="tot"><td>ISR retenido por patrón</td><td>${fmt(r.salInfo.isrRet)}</td></tr></table></div>`;}
   if(r.emit.length){
   // Mostrar todos: cobrados + PPD pendientes, ordenados por fecha
-  const todosParaTabla=[...(r.emit||[]),...(r.emitPPDsinCP||[])];
+  const todosParaTabla=[...(r.emit||[]),...(r.emitPPDsinCP||[]),...(r.cancEmit||[])];
   const emitOrd=todosParaTabla.sort((a,b)=>{
     const fa=a.tipo==='P'?(a.fechaPagoP||a.fecha||''):(a.fecha||'');
     const fb=b.tipo==='P'?(b.fechaPagoP||b.fecha||''):(b.fecha||'');
@@ -2720,20 +2737,21 @@ function renderRes(r){
   h+=`<div class="res-section"><div class="sec-title">CFDI emitidos — ingresos (${r.emit.length}) <span class="art">ordenados por fecha</span></div>
   <div style="overflow-x:auto"><table class="det-table"><thead><tr>
     <th>Fecha</th><th>Serie-Folio</th><th>RFC Receptor</th><th>Régimen</th><th>Concepto</th>
-    <th>Método</th><th>Forma Pago</th>
+    <th>Estatus SAT</th><th>Método</th><th>Forma Pago</th>
     <th class="num">Subtotal</th><th class="num">IVA</th><th class="num">IVA Ret</th><th class="num">ISR Ret</th><th class="num">Total</th>
   </tr></thead><tbody>
   ${emitOrd.map(x=>{
     // Determinar si este CFDI cuenta como ingreso cobrado
-    const cobrado = x.tipo==='P'
+    const canc=fkEsCancelado(x.uuid);
+    const cobrado = canc?false:x.tipo==='P'
       ? (x.fechaPagoP && new Date(x.fechaPagoP).getMonth()+1===r.mes && new Date(x.fechaPagoP).getFullYear()===r.anio)
       : (x.metodo==='PUE' || (x.metodo==='PPD' && (r.emitPPDsinCP||[]).indexOf(x)===-1));
-    const razonNoCobrado = x.tipo==='P' ? 'CP otro mes' : x.metodo==='PPD' ? 'PPD — pendiente cobro' : '';
+    const razonNoCobrado = canc ? 'Cancelado — no se considera' : x.tipo==='P' ? 'CP otro mes' : x.metodo==='PPD' ? 'PPD — pendiente cobro' : '';
     const fechaShow = x.tipo==='P'&&x.fechaPagoP ? x.fechaPagoP.substring(0,10) : x.fecha?.substring(0,10)||'—';
     const metBg = x.tipo==='P' ? 'rgba(0,150,100,.12)' : x.metodo==='PUE' ? 'rgba(0,102,204,.1)' : 'rgba(255,179,71,.1)';
     const metCol = x.tipo==='P' ? '#00aa66' : x.metodo==='PUE' ? 'var(--accent)' : 'var(--warn)';
     const metLabel = x.tipo==='P' ? 'CP' : x.metodo||'—';
-    return `<tr style="${cobrado?'':'opacity:.45'}">
+    return `<tr style="${cobrado?'':'opacity:.45'}${canc?';text-decoration:line-through':''}">
       <td style="white-space:nowrap;font-size:10px">
         ${fechaShow}
         ${x.tipo==='P'?'<div style="font-size:8px;color:#00aa66;font-weight:600">Complemento cobrado</div>':''}
@@ -2742,6 +2760,7 @@ function renderRes(r){
       <td><div style="font-family:var(--mono);font-size:10px">${x.rfcR||x.rfcE||'—'}</div><div style="font-size:10px;color:var(--text2)">${(x.nomR||x.nomE||'').substring(0,22)}</div></td>
       <td style="font-family:var(--mono);font-size:10px;text-align:center">${x.regimenR||'—'}</td>
       <td style="font-size:10px;color:var(--text2);max-width:150px">${x.conceptos.substring(0,50)}</td>
+      <td style="text-align:center;opacity:1">${fkBadgeEstatus(x.uuid)}</td>
       <td style="text-align:center">
         <span style="font-size:9px;padding:1px 5px;border-radius:3px;font-family:var(--mono);background:${metBg};color:${metCol}">${metLabel}</span>
         ${cobrado?'':'<div style="font-size:8px;color:var(--warn)">'+razonNoCobrado+'</div>'}
@@ -2755,7 +2774,7 @@ function renderRes(r){
     </tr>`;
   }).join('')}
   </tbody><tfoot><tr style="font-weight:600;background:var(--surface2)">
-    <td colspan="7" style="font-family:var(--mono);font-size:10px;padding:6px 8px">COBRADOS (${r.emit.length}) / TOTAL ${todosParaTabla.length}</td>
+    <td colspan="8" style="font-family:var(--mono);font-size:10px;padding:6px 8px">COBRADOS (${r.emit.length}) / TOTAL ${todosParaTabla.length}${(r.cancEmit||[]).length?' · CANCELADOS '+r.cancEmit.length:''}</td>
     <td class="num">${fmt(r.emit.reduce((s,x)=>s+(x.tipo==='P'?x.sub:x.sub),0))}</td>
     <td class="num">${fmt(r.emit.reduce((s,x)=>s+(x.tipo==='P'?(x.ivaImporteP||0):x.ivaTras),0))}</td>
     <td class="num">${fmt(r.emit.reduce((s,x)=>s+(x.ivaRet||0),0))}</td>
@@ -2781,7 +2800,7 @@ function renderRes(r){
   if(r.recib.length){
   const gd=r.gastosDeducibles||r.recib;
   const gnd=r.gastosNoDed||[];
-  const recibOrd=[...r.recib].sort((a,b)=>{
+  const recibOrd=[...r.recib,...(r.cancRecib||[])].sort((a,b)=>{
     const fa=a.tipo==='P'?(a.fechaPagoP||a.fecha||''):(a.fecha||'');
     const fb=b.tipo==='P'?(b.fechaPagoP||b.fecha||''):(b.fecha||'');
     return fa.localeCompare(fb);
@@ -2790,14 +2809,16 @@ function renderRes(r){
   h+=`<div class="res-section"><div class="sec-title">CFDI recibidos — gastos (${r.recib.length} total · ${gd.length} deducibles) <span class="art">por fecha pago</span></div>
   <div style="overflow-x:auto"><table class="det-table"><thead><tr>
     <th>Fecha pago</th><th>RFC Emisor</th><th>Concepto</th>
-    <th>Reg.R</th><th>Método</th><th>Forma Pago</th><th>Estado</th>
+    <th>Reg.R</th><th>Estatus SAT</th><th>Método</th><th>Forma Pago</th><th>Estado</th>
     <th class="num">Subtotal</th><th class="num">IVA</th>
   </tr></thead><tbody>
   ${recibOrd.map(x=>{
     const ded=(r.gastosDeducibles||[]).includes(x);
+    const cancR=fkEsCancelado(x.uuid);
     const BANC=['02','03','04','05','06','28'];
     const razones=[];
-    if(x.usoCFDI==='S01') razones.push('S01');
+    if(cancR) razones.push('Cancelado — no deducible');
+    else if(x.usoCFDI==='S01') razones.push('S01');
     else if(x.regimenR!==(regActivo||'626')) razones.push('Reg≠'+x.regimenR);
     else if(x.tipo==='P'){const fp=x.formaPagoP||'';razones.push(BANC.includes(fp)?'Pago ✓ ('+fp+')':'No bancarizado ('+fp+')');}
     else if(x.metodo==='PUE'){const fo=x.forma||'';razones.push(BANC.includes(fo)?'PUE ✓ ('+fo+')':'Efectivo ('+fo+')');}
@@ -2808,7 +2829,7 @@ function renderRes(r){
     const metBg=x.tipo==='P'?'rgba(0,150,100,.12)':x.metodo==='PUE'?'rgba(0,102,204,.1)':'rgba(255,179,71,.1)';
     const metCol=x.tipo==='P'?'#00aa66':x.metodo==='PUE'?'var(--accent)':'var(--warn)';
     const ivaShow=x.tipo==='P'?(x.ivaImporteP||0):x.ivaTras;
-    return `<tr style="${ded?'':'opacity:.45'}">
+    return `<tr style="${ded?'':'opacity:.45'}${cancR?';text-decoration:line-through':''}">
       <td style="white-space:nowrap;font-size:10px">
         ${fechaShow}
         ${x.tipo==='P'?`<div style="font-size:8px;color:#00aa66;font-weight:600">Complemento</div><div style="font-size:8px;color:var(--text3)">CFDI: ${x.fecha?.substring(0,10)||'—'}</div>`:''}
@@ -2816,6 +2837,7 @@ function renderRes(r){
       <td><div style="font-family:var(--mono);font-size:10px">${x.rfcE}</div><div style="font-size:10px;color:var(--text2)">${x.nomE.substring(0,22)}</div></td>
       <td style="font-size:10px;color:var(--text2);max-width:140px">${x.conceptos.substring(0,45)}</td>
       <td style="font-family:var(--mono);font-size:10px;text-align:center">${x.regimenR||'—'}</td>
+      <td style="text-align:center">${fkBadgeEstatus(x.uuid)}</td>
       <td style="text-align:center"><span style="font-size:9px;padding:1px 4px;border-radius:3px;font-family:var(--mono);background:${metBg};color:${metCol}">${metLabel}</span></td>
       <td style="font-size:10px;white-space:nowrap">${formaShow}</td>
       <td style="font-size:10px;color:${ded?'var(--accent)':'var(--danger)'}">
@@ -2829,11 +2851,11 @@ function renderRes(r){
     </tr>`;
   }).join('')}
   </tbody><tfoot>
-    <tr style="font-weight:600;background:var(--surface2)"><td colspan="7" style="font-family:var(--mono);font-size:10px;padding:6px 8px">DEDUCIBLES (${gd.length})</td>
+    <tr style="font-weight:600;background:var(--surface2)"><td colspan="8" style="font-family:var(--mono);font-size:10px;padding:6px 8px">DEDUCIBLES (${gd.length})</td>
       <td class="num">${fmt(gd.reduce((s,x)=>s+(x.tipo==='P'?0:x.sub),0))}</td>
       <td class="num" style="color:var(--accent)">${fmt(gd.reduce((s,x)=>s+(x.tipo==='P'?(x.ivaImporteP||0):x.ivaTras),0))}</td>
     </tr>
-    ${gnd.length?`<tr style="opacity:.5"><td colspan="7" style="font-family:var(--mono);font-size:10px;padding:6px 8px">NO DEDUCIBLES (${gnd.length})</td>
+    ${gnd.length?`<tr style="opacity:.5"><td colspan="8" style="font-family:var(--mono);font-size:10px;padding:6px 8px">NO DEDUCIBLES (${gnd.length})</td>
       <td class="num">${fmt(gnd.reduce((s,x)=>s+x.sub,0))}</td>
       <td class="num">${fmt(gnd.reduce((s,x)=>s+x.ivaTras,0))}</td>
     </tr>`:''}
@@ -2992,13 +3014,13 @@ function genExcel(modo='mes'){
 
   // ── HOJA Cfdi I ───────────────────────────────────────────
   const ciH=['UUID','Fecha','RFC receptor','Razon receptor','Regimen receptor','Uso CFDI','Tipo','Estado','Metodo','Forma pago','SubTotal','Descuento','IVA 16%','IVA Exento','IVA Ret','ISR Ret','Total'];
-  XLSX.utils.book_append_sheet(wb,ws([[`CFDI EMITIDOS — ${mesL} ${anio}`],[c.nombre],ciH,...r.emit.map(x=>[x.uuid,x.fecha?.substring(0,10),x.rfcR,x.nomR,x.regimenR||'',x.usoCFDI||'',x.tipo,'VIGENTE',x.metodo,'',+x.sub.toFixed(2),0,+x.ivaTras.toFixed(2),+(x.ivaEx||0).toFixed(2),+x.ivaRet.toFixed(2),+x.isrRet.toFixed(2),+x.total.toFixed(2)])]),'Cfdi I');
+  XLSX.utils.book_append_sheet(wb,ws([[`CFDI EMITIDOS — ${mesL} ${anio}`],[c.nombre],ciH,...r.emit.map(x=>[x.uuid,x.fecha?.substring(0,10),x.rfcR,x.nomR,x.regimenR||'',x.usoCFDI||'',x.tipo,(fkEstatus(x.uuid)?.estado||'SIN VERIFICAR').toUpperCase(),x.metodo,'',+x.sub.toFixed(2),0,+x.ivaTras.toFixed(2),+(x.ivaEx||0).toFixed(2),+x.ivaRet.toFixed(2),+x.isrRet.toFixed(2),+x.total.toFixed(2)])]),'Cfdi I');
 
   // ── HOJA Cfdi E ───────────────────────────────────────────
   const ceH=['UUID','Fecha','RFC emisor','Proveedor','Concepto','Regimen emisor','RFC receptor','Regimen receptor','Uso CFDI','Tipo','Estado','Metodo','Forma pago','SubTotal','Descuento','IVA 16%','IVA Exento','IVA Ret','ISR Ret','IEPS','Total','Deducible SAT'];
   const ceRows=r.recib.map(x=>{
     const ded=(r.gastosDeducibles||[]).includes(x);
-    return[x.uuid,x.fecha?.substring(0,10),x.rfcE,x.nomE,x.conceptos,x.regimenR||'',x.rfcR,x.regimenR||'',x.usoCFDI||'',x.tipo,'VIGENTE',x.metodo||'P',x.forma||x.formaPagoP||'',+x.sub.toFixed(2),0,+x.ivaTras.toFixed(2),+(x.ivaEx||0).toFixed(2),+(x.ivaRet||0).toFixed(2),+(x.isrRet||0).toFixed(2),0,+x.total.toFixed(2),ded?'SÍ':'NO'];
+    return[x.uuid,x.fecha?.substring(0,10),x.rfcE,x.nomE,x.conceptos,x.regimenR||'',x.rfcR,x.regimenR||'',x.usoCFDI||'',x.tipo,(fkEstatus(x.uuid)?.estado||'SIN VERIFICAR').toUpperCase(),x.metodo||'P',x.forma||x.formaPagoP||'',+x.sub.toFixed(2),0,+x.ivaTras.toFixed(2),+(x.ivaEx||0).toFixed(2),+(x.ivaRet||0).toFixed(2),+(x.isrRet||0).toFixed(2),0,+x.total.toFixed(2),ded?'SÍ':'NO'];
   });
   XLSX.utils.book_append_sheet(wb,ws([[`CFDI RECIBIDOS — ${mesL} ${anio}`],[c.nombre],ceH,...ceRows]),'Cfdi E');
 
@@ -3396,6 +3418,7 @@ function renderClienteDashboard(){
       <div class="fk-ob">${cols.map(([k,l])=>{
         const s=st[k]; const click=k==='conc'&&s!=='fut'?` onclick="fkToggleConc(${anio},${n})" style="cursor:pointer"`:'';
         return `<span class="s-${s}" title="${l}: ${tip[s]||''}"${click}><em>${ico[s]}</em>${l}</span>`;}).join('')}</div>
+      ${(()=>{const x=fkCanceladosDespues(c).find(y=>y.anio===anio&&y.mes===n);return x?`<div class="fk-canc" title="${fkTextoCanc(x)}">⚠ ${x.n} CFDI cancelado(s) · recalcular</div>`:''})()}
       ${(st.isr==='calc'||st.iva==='calc')?`<button class="fk-pres" onclick="fkAbrirPresentar('${c.rfc}',${anio},${n})">✓ Marcar presentada</button>`:''}
     </div>`;
   }).join('');
@@ -3629,6 +3652,36 @@ async function fkToggleDevol(id){
   c.saldosIVADevol={...(c.saldosIVADevol||{})}; if(c.saldosIVADevol[id]) delete c.saldosIVADevol[id]; else c.saldosIVADevol[id]=new Date().toISOString().slice(0,10);
   try{ await window.dbSaveCli(c); }catch(err){ toast('Error al guardar: '+err.message,'err'); }
   renderClienteDashboard();
+}
+
+
+// ── ESTATUS SAT DE CFDI Y AVISOS DE CANCELACIÓN ────────────────────────
+// estatus_cfdi lo llena el Conector (npm.cmd run verificar) con el servicio público del SAT.
+function fkEstatus(uuid){ return (window._estatusCFDI||{})[String(uuid||'').toUpperCase()]||null; }
+function fkEsCancelado(uuid){ const e=fkEstatus(uuid); return !!(e&&e.estado==='Cancelado'); }
+function fkBadgeEstatus(uuid){
+  const e=fkEstatus(uuid);
+  if(!e) return `<span class="st-sat st-sv" title="Aún no verificado en el SAT. Corre: npm.cmd run verificar">Sin verificar</span>`;
+  const f=e.fechaConsulta?new Date(e.fechaConsulta).toLocaleDateString('es-MX'):'';
+  if(e.estado==='Cancelado') return `<span class="st-sat st-can" title="Cancelado en el SAT · detectado ${f}">Cancelado</span>`;
+  if(e.estado==='Vigente') return `<span class="st-sat st-vig" title="Vigente en el SAT · consultado ${f}">Vigente</span>`;
+  return `<span class="st-sat st-sv" title="${fdEsc(e.estado)} · ${f}">${fdEsc(e.estado)}</span>`;
+}
+// Meses ya calculados que usaron CFDI que después se cancelaron
+function fkCanceladosDespues(c){
+  const out=[];
+  window._historial.filter(h=>h.rfc===c.rfc).forEach(h=>{
+    const e=(h.uuidsE||[]).filter(fkEsCancelado), r=(h.uuidsR||[]).filter(fkEsCancelado);
+    if(e.length||r.length){
+      const pres=!!fkPresentada(c,h.anio,h.mes,/ISR|IVA/i,[1]);
+      out.push({anio:h.anio,mes:h.mes,rc:h.rc,e,r,n:e.length+r.length,pres});
+    }
+  });
+  return out.sort((a,b)=>a.anio-b.anio||a.mes-b.mes);
+}
+function fkTextoCanc(x){
+  const p=[]; if(x.e.length) p.push(`${x.e.length} emitido(s)`); if(x.r.length) p.push(`${x.r.length} recibido(s)`);
+  return `${p.join(' y ')} cancelado(s) después del cálculo · ${x.pres?'recalcular y presentar complementaria':'recalcular'}`;
 }
 
 // ── MARCAR DECLARACIÓN COMO PRESENTADA (desde cualquier pantalla) ───────
@@ -3905,6 +3958,9 @@ function fdAtencion(){
     const cli=(window._clientes.find(c=>c.rfc===a.rfc)||{}).nombre||a.cliente||a.rfc||'';
     items.push({sev:d!==null&&d<0?0:3,tag:'AVISO',cls:d!==null&&d<0?'bad':'info',t:`${a.descripcion||'Aviso pendiente'}${cli?' · '+cli:''}`,d:a.fechaLimite?`Límite ${fmtFechaCorta(a.fechaLimite)}`:'Sin fecha límite',ord:d??999});
   });
+  (window._clientes||[]).forEach(c=>{ fkCanceladosDespues(c).forEach(x=>{
+    items.push({sev:0,tag:'CANCELADO',cls:'bad',t:`${c.nombre} · ${MF[x.mes-1]} ${x.anio}`,d:fkTextoCanc(x),ord:-1});
+  }); });
   return items.sort((a,b)=>a.sev-b.sev||a.ord-b.ord);
 }
 
