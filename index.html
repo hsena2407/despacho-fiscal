@@ -9,7 +9,7 @@
 <!-- Firebase SDK -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
-import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDj_2K4x6TZz6cCzxiHyN9C9fD1uPD7t5Q",
@@ -36,6 +36,7 @@ window.dbDelCli = async (rfc) => {
   snap.forEach(d => { if(d.data().rfc === rfc) batch.push(deleteDoc(doc(db, "historial", d.id))); });
   await Promise.all(batch);
 };
+window.dbSaveLista49 = async (items) => { await setDoc(doc(db,'listas_sat','49bis'),{items,fecha:new Date().toISOString()}); };
 window.dbSaveHist = async (h) => {
   const id = `${h.rfc}_${h.anio}_${h.mes}_${h.rc}`;
   await setDoc(doc(db, "historial", id), h);
@@ -110,6 +111,11 @@ window.dbLoad = async () => {
     oSnap.forEach(d => window._obligaciones.push(d.data()));
     try{ const esSnap=await getDocs(collection(db,"estatus_cfdi")); window._estatusCFDI={}; esSnap.forEach(d=>{const x=d.data(); window._estatusCFDI[String(x.uuid||d.id).toUpperCase()]=x;}); }
     catch(e2){ window._estatusCFDI={}; console.warn('No se pudo leer estatus_cfdi (reglas de Firestore):',e2); }
+    try{
+      const l69=await getDoc(doc(db,'listas_sat','69b')); window._l69={}; window._l69meta=null;
+      if(l69.exists()){ const d=l69.data(); window._l69meta={fecha:d.fecha,def:d.definitivos,pre:d.presuntos}; String(d.items||'').split(';').forEach(x=>{const [r,k]=x.split('|'); if(r) window._l69[r]=k;}); }
+      const l49=await getDoc(doc(db,'listas_sat','49bis')); window._l49=l49.exists()?(l49.data().items||[]):[];
+    }catch(e3){ window._l69=window._l69||{}; window._l49=window._l49||[]; console.warn('No se pudieron leer las listas SAT:',e3); }
     eSnap.forEach(d => window._efirmaCsd.push(d.data()));
     aSnap.forEach(d => window._avisos.push(d.data()));
     nSnap.forEach(d => window._notas.push(d.data()));
@@ -429,10 +435,10 @@ input[type="checkbox"]{width:auto;cursor:pointer}
 .fc-cal .n{font-family:var(--mono);font-size:17px;font-weight:600}.fc-cal .m{font-size:10px;color:#4F5D75;text-transform:uppercase}
 .fc-cal.urg{border-color:#E8A33D;background:#FFF8EC}
 .fc-bar{display:flex;height:10px;border-radius:999px;overflow:hidden;gap:3px;margin:14px 0 16px;background:#EAEEF4}
-.fc-stages{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.fc-stages{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
 .fc-dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;vertical-align:-1px}
 .fc-num{font-family:var(--mono);font-size:24px;font-weight:600;margin-top:2px}
-.fc-board{display:grid;grid-template-columns:repeat(4,minmax(240px,1fr));gap:12px;min-width:980px}
+.fc-board{display:grid;grid-template-columns:repeat(5,minmax(210px,1fr));gap:12px;min-width:1100px}
 .fc-col{background:#EAEEF4;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
 .fc-colh{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;padding:2px 4px 4px}
 .fc-cli{display:block;text-align:left;width:100%;font-family:var(--sans);color:#14213A;background:#fff;border:1px solid #DCE2EC;border-radius:10px;padding:12px;cursor:pointer}
@@ -489,6 +495,13 @@ input[type="checkbox"]{width:auto;cursor:pointer}
 .st-sat{display:inline-block;font-size:9px;font-weight:600;font-family:var(--mono);padding:2px 6px;border-radius:4px;white-space:nowrap;text-decoration:none}
 .st-vig{background:#E3F5EE;color:#12806A}.st-can{background:#FDECEA;color:#B42318}.st-sv{background:#F0F2F5;color:#8A97AD}
 .fk-canc{margin:0 8px 6px;font-size:11px;font-weight:600;color:#B42318;background:#FDECEA;border-radius:6px;padding:4px 6px}
+.vx-card{margin:0 0 16px}.vx-res{display:flex;gap:6px;flex-wrap:wrap}
+.vx-p{font-size:11px;font-weight:600;border-radius:999px;padding:3px 9px}.vxp-bad{background:#FDECEA;color:#B42318}.vxp-warn{background:#FFF4E0;color:#9A5B00}.vxp-info{background:#EEF2F8;color:#1F5FBF}.vxp-ok{background:#E3F5EE;color:#12806A}
+.vx{border-top:1px solid #EDF0F5}.vx summary{display:flex;align-items:center;gap:10px;padding:9px 2px;cursor:pointer;list-style:none;font-size:13px}.vx summary::-webkit-details-marker{display:none}
+.vx summary em{font-style:normal;width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex:none}
+.vx-bad summary em{background:#B42318;color:#fff}.vx-warn summary em{background:#E8A33D;color:#fff}.vx-info summary em{background:#4A86D9;color:#fff}.vx-ok summary em{background:#1D9E75;color:#fff}
+.vx summary b{font-weight:600;flex:1}.vx-d{font-size:12px;color:#4F5D75;padding:0 2px 10px 32px;line-height:1.5}.vx-d ul{margin:6px 0 0;padding-left:16px;font-family:var(--mono);font-size:11px}
+.vx-foot{display:flex;gap:14px;align-items:center;justify-content:space-between;border-top:1px solid #EDF0F5;padding-top:12px;margin-top:2px}
 .fk-lnk{border:none;background:none;color:#1F5FBF;font-size:12px;cursor:pointer;padding:0;font-family:var(--sans)}
 .fk-addsal{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 6px;padding-top:12px;border-top:1px solid #EDF0F5}
 .fk-addsal b{font-size:13px;width:100%}.fk-addsal .fc-sel{width:auto;min-width:110px}
@@ -1508,7 +1521,7 @@ window.renderCli = function(){
   const res=document.getElementById('cl-resumen');
   if(res) res.textContent=[`${clientes.length} clientes`,n('r626')&&`${n('r626')} RESICO`,n('r612')&&`${n('r612')} actividad empresarial`,n('r606')&&`${n('r606')} arrendamiento`].filter(Boolean).join(' · ');
   let faltaXml=false;
-  const etq={term:['Presentado','ok'],pres:['Por presentar','info'],calc:['Por calcular','warn'],desc:['Por descargar','mut']};
+  const etq={term:['Presentado','ok'],pres:['Por presentar','info'],val:['Por validar','warn'],calc:['Por calcular','warn'],desc:['Por descargar','mut']};
   const filas=clientes.map((c,i)=>{
     const R=(typeof fkReglas==='function')?fkReglas(c):{imp:['ISR']};
     const rs=regs(c);
@@ -1525,6 +1538,7 @@ window.renderCli = function(){
       cliActivo=prev; }
     fkCanceladosDespues(c).forEach(x=>pend.push(['bad',`${MS[x.mes-1]}: ${x.n} CFDI cancelado(s)`]));
     fkCPsPendientes(c).forEach(x=>pend.push(['warn',`${MS[x.mes-1]}: complemento sin considerar`]));
+    fkListasDespues(c).forEach(x=>pend.push(['bad',`${MS[x.mes-1]}: proveedor en 69-B/49 Bis`]));
     if(c.opinion32D&&c.opinion32D.estatus==='negativa') pend.push(['bad','32-D negativa']);
     if(c.buzon&&c.buzon.estatus==='no') pend.push(['bad','Buzón no habilitado']);
     if(c.r626&&typeof fkTileLimite==='function'){ const l=fkTileLimite(c,per.anio); if(l.cls==='bad'||l.cls==='warn') pend.push([l.cls,l.v]); }
@@ -1542,7 +1556,7 @@ window.renderCli = function(){
   });
   homeList.innerHTML=filas.join('');
   const cnt=k=>[...homeList.children].filter(x=>k==='todos'||(k==='pend'?x.dataset.pend==='1':x.dataset.et===k)).length;
-  const fl=[['todos','Todos'],['pend','Con pendientes'],['desc','Por descargar'],['calc','Por calcular'],['pres','Por presentar'],['term','Presentados']];
+  const fl=[['todos','Todos'],['pend','Con pendientes'],['desc','Por descargar'],['calc','Por calcular'],['val','Por validar'],['pres','Por presentar'],['term','Presentados']];
   const fe=document.getElementById('cl-filtros');
   if(fe) fe.innerHTML=fl.map(([k,l])=>`<button class="${window._clFiltro===k?'on':''}" onclick="window._clFiltro='${k}';renderCli()">${l} <b>${cnt(k)}</b></button>`).join('');
   filtrarClientes(document.getElementById('home-search')?.value||'');
@@ -2593,13 +2607,15 @@ async function procesar(){
   const FORMAS_BANCARIZADAS = ['02','03','04','05','06','28'];
   function esDeducible(x, regCliente) {
     if(x.usoCFDI === 'S01') return false;
+    if(fkProvBloqueado(x.rfcE)) return false; // 69-B definitivo o 49 Bis: sus CFDI no surten efectos
     if(x.regimenR !== regCliente) return false;
     if(x.tipo === 'P') {
       // Complemento de pago: bancarizado = acreditable
       return FORMAS_BANCARIZADAS.includes(x.formaPagoP||x.metodo||'');
     }
     if(x.metodo === 'PUE') {
-      // PUE: solo si forma de pago bancarizada
+      // PUE: bancarizada; en efectivo solo hasta $2,000 y nunca combustibles (art. 27-III LISR; art. 5-I LIVA)
+      if(x.forma==='01') return (x.total||0)<=2000 && !x.esCombustible;
       return FORMAS_BANCARIZADAS.includes(x.forma||'');
     }
     return false; // PPD sin complemento
@@ -2669,6 +2685,7 @@ async function procesar(){
     ivaTrasI:+(r.ivaTrasI||0).toFixed(2),ivaRetI:+(r.ivaRetI||0).toFixed(2),ivaAcred:+((r.ivaPropAcred||r.ivaAcred)||0).toFixed(2),ivaF:+(r.ivaF||0).toFixed(2),isrRetI:+(r.isrRetI||0).toFixed(2),
     ivaSaldoAp:r.ivaSaldoAp||[],ivaSaldoTot:r.ivaSaldoTot||0,ivaPagar:(r.ivaPagar??(r.ivaP||0)),
     cpOtrosMeses:r.cpAtrasados||[],
+    rfcsR:[...new Set((r.gastosDeducibles||[]).map(x=>String(x.rfcE||'').toUpperCase()).filter(Boolean))],
     uuidsE:(r.emit||[]).map(x=>String(x.uuid||'').toUpperCase()).filter(Boolean),uuidsR:(r.gastosDeducibles||[]).map(x=>String(x.uuid||'').toUpperCase()).filter(Boolean)};
   try{
     // Verificar si ya existe para incrementar contador de recálculos
@@ -2753,6 +2770,7 @@ function renderRes(r){
     <div class="metric"><div class="val">${r.emit.length}</div><div class="lbl">CFDI emitidos</div></div>
     <div class="metric"><div class="val">${r.recib.length}</div><div class="lbl">CFDI recibidos</div></div>
   </div><div class="divider"></div>`;
+  h+=fkTarjetaValidacion(r,c);
   // ── TABS ISR / IVA ──
   const tabIVA = c.iva !== 'no' ? `<button class="tab-res active" onclick="switchResTab('isr',this.closest('.tabs-wrap'))">ISR <span class="badge-res badge-red">${fmt(r.isrCargo)}</span></button><button class="tab-res" onclick="switchResTab('iva',this.closest('.tabs-wrap'))">IVA <span class="badge-res ${(r.ivaF||0)>0?'badge-green':'badge-red'}">${(r.ivaF||0)>0?'FAV '+fmt(r.ivaF):fmt(r.ivaPagar??r.ivaP)}</span></button>` : `<button class="tab-res active">ISR <span class="badge-res badge-red">${fmt(r.isrCargo)}</span></button>`;
   h+=`<div class="tabs-wrap"><div class="tabs-res">${tabIVA}</div>`;
@@ -2881,7 +2899,8 @@ function renderRes(r){
     else if(x.usoCFDI==='S01') razones.push('S01');
     else if(x.regimenR!==(regActivo||'626')) razones.push('Reg≠'+x.regimenR);
     else if(x.tipo==='P'){const fp=x.formaPagoP||'';razones.push(BANC.includes(fp)?'Pago ✓ ('+fp+')':'No bancarizado ('+fp+')');}
-    else if(x.metodo==='PUE'){const fo=x.forma||'';razones.push(BANC.includes(fo)?'PUE ✓ ('+fo+')':'Efectivo ('+fo+')');}
+    else if(fkProvBloqueado(x.rfcE)) razones.push(fkProvBloqueado(x.rfcE));
+    else if(x.metodo==='PUE'){const fo=x.forma||'';razones.push(BANC.includes(fo)?'PUE ✓ ('+fo+')':(fo==='01'&&(x.total||0)<=2000&&!x.esCombustible)?'Efectivo ≤ $2,000 ✓':'Efectivo ('+fo+')');}
     else if(x.metodo==='PPD') razones.push('PPD s/pago');
     const fechaShow=x.tipo==='P'&&x.fechaPagoP?x.fechaPagoP.substring(0,10):(x.fecha?.substring(0,10)||'—');
     const formaShow=fD2(x.tipo==='P'?x.formaPagoP:x.forma);
@@ -3831,6 +3850,124 @@ function fkTextoCanc(x){
   return `${p.join(' y ')} cancelado(s) después del cálculo · ${x.pres?'recalcular y presentar complementaria':'recalcular'}`;
 }
 
+
+// ── ETAPA VALIDAR ──────────────────────────────────────────────────────
+// Listas del SAT: 69-B (lo sube el Conector) y 49 Bis (captura manual desde los oficios del DOF).
+function fkEn69B(rfc){ return (window._l69||{})[String(rfc||'').toUpperCase()]||''; }
+function fkEn49(rfc){ return (window._l49||[]).find(x=>x.rfc===String(rfc||'').toUpperCase())||null; }
+function fkProvBloqueado(rfc){
+  if(fkEn69B(rfc)==='D') return '69-B definitivo';
+  if(fkEn49(rfc)) return '49 Bis · CFDI falsos';
+  return '';
+}
+function fkValidar(r,c){
+  const out=[], add=(nivel,titulo,detalle,fund,lista)=>out.push({nivel,titulo,detalle,fund,lista:lista||[]});
+  const emit=[...(r.emit||[]),...(r.emitPPDsinCP||[])], recib=[...(r.recib||[])];
+  const todos=[...emit,...recib];
+  const fila=x=>`${x.serie||''} ${x.folio||''} · ${x.nomE&&x.rfcE!==c.rfc?x.nomE:x.nomR||''} · ${String(x.fecha||'').substring(0,10)} · ${fmt(x.total||x.sub||0)}`;
+  // 1. Estatus SAT
+  const sinVer=todos.filter(x=>!fkEstatus(x.uuid)), canc=[...(r.cancEmit||[]),...(r.cancRecib||[])];
+  if(sinVer.length) add('warn',`${sinVer.length} CFDI sin verificar en el SAT`,'Corre el Conector (npm.cmd run verificar) o espera la revisión diaria de las 8:00.','Art. 29-A CFF',sinVer.slice(0,30).map(fila));
+  else add('ok','Todos los CFDI verificados en el SAT',canc.length?`${canc.length} cancelado(s) excluido(s) del cálculo.`:'Ninguno cancelado.','Art. 29-A CFF');
+  // 2. Complementos de pago
+  const raros=(r.cpRaros||[]).map(y=>y.x), fp=[...(r.emit||[]),...(r.gastosDeducibles||[])].filter(x=>x.tipo==='P'&&x.fueraPlazo&&!x.ajusteCP);
+  if(raros.length) add('bad',`${raros.length} complemento(s) con fecha de pago dudosa`,'No se sumaron. Pide que se reexpidan con la fecha real o usa "Considerar en este mes" si el cobro fue aquí.','Art. 113-E LISR; art. 1-B LIVA',raros.map(fila));
+  if(fp.length) add('warn',`${fp.length} complemento(s) emitido(s) fuera de plazo`,'Sí se consideran en el mes del pago.','Regla 2.7.1.32 RMF 2026',fp.map(fila));
+  if(!raros.length&&!fp.length) add('ok','Complementos de pago en orden','Fechas de pago y plazos correctos.','Regla 2.7.1.32 RMF 2026');
+  // 3. PPD emitidas sin cobro
+  const ppdE=(r.emitPPDsinCP||[]).filter(x=>!fkPagosPPD(x.uuid).length&&!fkEsCancelado(x.uuid));
+  if(ppdE.length) add('info',`${ppdE.length} factura(s) PPD emitida(s) sin complemento de pago`,'No son ingreso hasta que se cobren. Verifica con el cliente si ya le pagaron.','Art. 113-E LISR; art. 1-B LIVA',ppdE.map(fila));
+  // 4. Gastos
+  const efe=recib.filter(x=>x.tipo==='I'&&x.metodo==='PUE'&&x.forma==='01'&&((x.total||0)>2000||x.esCombustible));
+  if(efe.length) add('warn',`${efe.length} gasto(s) pagado(s) en efectivo que no se deducen ni acreditan`,'Mayores de $2,000, o combustible pagado en efectivo.','Art. 27-III LISR; art. 5-I LIVA',efe.map(fila));
+  const ppdR=recib.filter(x=>x.tipo==='I'&&x.metodo==='PPD');
+  if(ppdR.length) add('info',`${ppdR.length} gasto(s) PPD sin complemento de pago del proveedor`,'Su IVA se acredita hasta que se pague y el proveedor emita el complemento.','Art. 5-III LIVA',ppdR.map(fila));
+  const usoMal=recib.filter(x=>x.usoCFDI==='S01'||(x.regimenR&&x.regimenR!==(r.reg||regActivo)));
+  if(usoMal.length) add('warn',`${usoMal.length} gasto(s) con uso CFDI S01 o régimen del receptor distinto`,'No se consideran. Pide al proveedor que sustituya el CFDI con los datos correctos.','Art. 29-A fr. IV y V CFF',usoMal.map(fila));
+  // 5. Listas del SAT (al final)
+  const provs={}; recib.forEach(x=>{const k=String(x.rfcE||'').toUpperCase(); (provs[k]=provs[k]||[]).push(x);});
+  const def=Object.keys(provs).filter(k=>fkEn69B(k)==='D'), pre=Object.keys(provs).filter(k=>fkEn69B(k)==='P'), f49=Object.keys(provs).filter(k=>fkEn49(k));
+  const m=window._l69meta;
+  const meta69=m?`Lista del ${new Date(m.fecha).toLocaleDateString('es-MX')} · ${m.def} definitivos · ${m.pre} presuntos.`:'Aún no hay lista 69-B: corre el Conector 0.5 (npm.cmd run listas).';
+  if(def.length) add('bad',`${def.length} proveedor(es) en 69-B DEFINITIVO`,'Sus CFDI no producen efectos fiscales: se excluyeron del cálculo. Si en meses anteriores ya les diste efecto, tienes 30 días desde la publicación para acreditar la operación o corregir con complementaria.','Art. 69-B CFF',def.map(k=>`${k} · ${provs[k][0].nomE||''} · ${provs[k].length} CFDI · ${fmt(provs[k].reduce((a,x)=>a+(x.sub||0),0))}`));
+  if(pre.length) add('warn',`${pre.length} proveedor(es) en 69-B PRESUNTO`,'Todavía surten efectos, pero pueden pasar a definitivo. Integra evidencia de que la operación es real (contrato, entregables, pagos).','Art. 69-B CFF',pre.map(k=>`${k} · ${provs[k][0].nomE||''} · ${provs[k].length} CFDI`));
+  if(!def.length&&!pre.length) add('ok','Ningún proveedor en la lista 69-B',meta69,'Art. 69-B CFF');
+  if(f49.length) add('bad',`${f49.length} proveedor(es) con CFDI declarados falsos (49 Bis)`,'Se excluyeron del cálculo. Hay que revertir su efecto fiscal dentro de los 30 días naturales siguientes a la publicación en el DOF.','Art. 49 Bis y 29-A fr. IX CFF',f49.map(k=>{const z=fkEn49(k);return `${k} · ${z.nombre||''} · DOF ${z.fecha||''}`;}));
+  else add('ok','Ningún proveedor en la lista 49 Bis',`${(window._l49||[]).length} RFC capturados de los oficios del DOF.`,'Art. 49 Bis CFF');
+  if(m&&(Date.now()-new Date(m.fecha).getTime())>7*86400000) add('warn','La lista 69-B tiene más de 7 días',meta69+' Revisa que la tarea diaria del Conector esté corriendo.','Art. 69-B CFF');
+  return out;
+}
+function fkTarjetaValidacion(r,c){
+  if(!r||!r.mes) return '';
+  const xs=fkValidar(r,c), n={bad:0,warn:0,info:0,ok:0}; xs.forEach(x=>n[x.nivel]++);
+  const h=window._historial.find(z=>z.rfc===c.rfc&&z.anio===r.anio&&z.mes===r.mes&&z.rc===(r.reg||regActivo));
+  const val=h&&h.validado;
+  const ico={bad:'✕',warn:'!',info:'i',ok:'✓'};
+  const items=xs.map((x,i)=>`<details class="vx vx-${x.nivel}" ${x.nivel==='bad'?'open':''}><summary><em>${ico[x.nivel]}</em><b>${fdEsc(x.titulo)}</b><span class="art">${fdEsc(x.fund)}</span></summary>
+    <div class="vx-d">${fdEsc(x.detalle)}${x.lista.length?`<ul>${x.lista.map(l=>`<li>${fdEsc(l)}</li>`).join('')}</ul>`:''}</div></details>`).join('');
+  return `<div class="fc-card vx-card"><div class="fk-cardh"><h2>Validación de ${MF[r.mes-1]} ${r.anio}</h2>
+      <div class="vx-res">${n.bad?`<span class="vx-p vxp-bad">${n.bad} por corregir</span>`:''}${n.warn?`<span class="vx-p vxp-warn">${n.warn} por revisar</span>`:''}${n.info?`<span class="vx-p vxp-info">${n.info} informativo(s)</span>`:''}<span class="vx-p vxp-ok">${n.ok} en orden</span></div></div>
+    ${items}
+    <div class="vx-foot">
+      ${val?`<span class="cl-st cl-st-ok">✓ Validado el ${new Date(h.validado.fecha).toLocaleDateString('es-MX')}${h.validado.alertas?` con ${h.validado.alertas} punto(s) revisado(s)`:''}</span>`:
+        `<button class="fc-btn ok" onclick="fkMarcarValidado(${n.bad},${n.warn})">✓ Marcar como validado</button>`}
+      <button class="fk-lnk" onclick="fkAbrirListas()">Listas SAT (49 Bis)</button>
+    </div></div>`;
+}
+async function fkMarcarValidado(bad,warn){
+  const r=lastRes&&lastRes.r, c=cliActivo; if(!r||!c) return;
+  if(bad&&!confirm(`Hay ${bad} punto(s) por corregir. ¿Marcar como validado de todos modos?`)) return;
+  const hs=window._historial.filter(z=>z.rfc===c.rfc&&z.anio===r.anio&&z.mes===r.mes);
+  if(!hs.length){ toast('Primero calcula el mes','err'); return; }
+  try{
+    for(const h of hs){ h.validado={fecha:new Date().toISOString(),alertas:bad+warn}; await window.dbSaveHist(h); }
+    toast('Mes validado ☁️ · ya puedes presentarlo');
+  }catch(err){ toast('Error al guardar: '+err.message,'err'); return; }
+  renderRes(r); if(typeof renderMesGrid==='function') renderMesGrid();
+}
+// Captura de la lista 49 Bis (oficios del DOF)
+function fkAbrirListas(){
+  let ov=document.getElementById('fk-lst-ov');
+  if(!ov){ ov=document.createElement('div'); ov.id='fk-lst-ov'; ov.className='fk-ov'; ov.onclick=e=>{if(e.target===ov) ov.style.display='none';}; document.body.appendChild(ov); }
+  const m=window._l69meta, l=window._l49||[];
+  ov.innerHTML=`<div class="fk-ov-box" style="max-width:640px"><button class="fk-ov-x" onclick="document.getElementById('fk-lst-ov').style.display='none'">✕</button>
+    <h2 style="margin:0 0 6px;font-size:18px">Listas del SAT</h2>
+    <div class="fc-meta" style="margin-bottom:12px"><b>69-B:</b> ${m?`actualizada el ${new Date(m.fecha).toLocaleString('es-MX')} · ${m.def} definitivos · ${m.pre} presuntos. La descarga el Conector cada día.`:'sin descargar. Corre <code>npm.cmd run listas</code> en el Conector 0.5.'}</div>
+    <div class="fc-meta" style="margin-bottom:8px"><b>49 Bis (CFDI falsos):</b> el SAT la publica por oficio en el DOF, sin archivo descargable. Captura aquí cada RFC publicado; sus CFDI se excluyen del cálculo y se avisa en los meses donde ya se usaron.</div>
+    ${l.length?`<table class="fk-tab"><thead><tr><th>RFC</th><th>Nombre</th><th>Publicación DOF</th><th>Oficio</th><th></th></tr></thead><tbody>${l.map((x,i)=>`<tr><td>${fdEsc(x.rfc)}</td><td style="text-align:left;font-family:var(--sans)">${fdEsc(x.nombre||'')}</td><td>${fdEsc(x.fecha||'')}</td><td>${fdEsc(x.oficio||'')}</td><td><button class="fk-lnk" style="color:#B42318" onclick="fkQuitar49(${i})">Quitar</button></td></tr>`).join('')}</tbody></table>`:'<div class="fc-meta">Sin RFC capturados.</div>'}
+    <div class="fk-addsal"><b>Agregar RFC publicado en 49 Bis</b>
+      <input id="l49-rfc" class="fc-sel" placeholder="RFC" style="text-transform:uppercase;min-width:150px">
+      <input id="l49-nom" class="fc-sel" placeholder="Nombre o razón social" style="min-width:220px">
+      <input id="l49-fec" class="fc-sel" type="date" title="Fecha de publicación en el DOF">
+      <input id="l49-of" class="fc-sel" placeholder="Oficio (opcional)">
+      <button class="fc-btn pri" onclick="fkAgregar49()">Agregar</button></div>
+  </div>`;
+  ov.style.display='flex';
+}
+async function fkAgregar49(){
+  const rfc=document.getElementById('l49-rfc').value.trim().toUpperCase();
+  if(!/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/.test(rfc)){ toast('RFC no válido','err'); return; }
+  const l=[...(window._l49||[])].filter(x=>x.rfc!==rfc);
+  l.push({rfc,nombre:document.getElementById('l49-nom').value.trim(),fecha:document.getElementById('l49-fec').value,oficio:document.getElementById('l49-of').value.trim()});
+  try{ await window.dbSaveLista49(l); window._l49=l; toast('RFC agregado a 49 Bis ☁️'); }catch(err){ toast('Error al guardar: '+err.message,'err'); return; }
+  fkAbrirListas(); fkRefrescarPantalla();
+}
+async function fkQuitar49(i){
+  const l=[...(window._l49||[])]; l.splice(i,1);
+  try{ await window.dbSaveLista49(l); window._l49=l; }catch(err){ toast('Error al guardar: '+err.message,'err'); return; }
+  fkAbrirListas(); fkRefrescarPantalla();
+}
+// Avisos: meses ya calculados que usaron proveedores que hoy están en 69-B definitivo o 49 Bis
+function fkListasDespues(c){
+  const out=[];
+  window._historial.filter(h=>h.rfc===c.rfc&&h.rfcsR).forEach(h=>{
+    const malos=h.rfcsR.filter(fkProvBloqueado);
+    if(malos.length) out.push({anio:h.anio,mes:h.mes,rfcs:malos,pres:!!fkPresentada(c,h.anio,h.mes,/ISR|IVA/i,[1])});
+  });
+  return out;
+}
+function fkTextoListas(x){ return `${x.rfcs.length} proveedor(es) usados ahora en ${x.rfcs.map(fkProvBloqueado).filter((v,i,a)=>a.indexOf(v)===i).join(' / ')} · ${x.pres?'corregir con complementaria (30 días)':'recalcular'}`; }
+
 // ── MARCAR DECLARACIÓN COMO PRESENTADA (desde cualquier pantalla) ───────
 function fkAbrirPresentar(rfc,anio,mes){
   const c=window._clientes.find(x=>x.rfc===rfc); if(!c) return;
@@ -4073,7 +4210,9 @@ function fdEtapaCliente(c, anio, mes){
   if(pres) return {etapa:'term', nota:`Presentada${pres.fechaPresentacion?' el '+fmtFechaCorta(pres.fechaPresentacion):''}${pres.numOperacion?' · op. '+pres.numOperacion:''}`, tono:'ok'};
   if(calc.length){
     const isr=calc.reduce((s,h)=>s+(h.isr||0),0), iva=calc.reduce((s,h)=>s+(h.ivaPagar??h.iva??0),0);
-    return {etapa:'pres', nota:`ISR ${fmt(isr)}${c.iva==='no'?'':' · IVA '+fmt(iva)}`, tono:'muted'};
+    const txt=`ISR ${fmt(isr)}${c.iva==='no'?'':' · IVA '+fmt(iva)}`;
+    if(!calc.every(h=>h.validado)) return {etapa:'val', nota:txt+' · falta validar', tono:'muted'};
+    return {etapa:'pres', nota:txt+' · validado', tono:'muted'};
   }
   if(x===undefined) return {etapa:'desc', nota:'Revisando XML en la nube…', tono:'muted'};
   if(x.e||x.r) return {etapa:'calc', nota:`XML en la nube · ↑${x.e} emitidos · ↓${x.r} recibidos`, tono:'muted'};
@@ -4084,7 +4223,7 @@ function fdAbrirCliente(rfc, etapa){
   const {anio,mes}=window._fdPeriodo;
   const idx=window._clientes.findIndex(c=>c.rfc===rfc);
   if(idx<0) return;
-  if(etapa==='calc'||etapa==='pres'){ irProcesarDesde(rfc, mes, anio); }
+  if(etapa==='calc'||etapa==='val'||etapa==='pres'){ irProcesarDesde(rfc, mes, anio); }
   else { abrirClienteMeses(idx); }
 }
 
@@ -4105,6 +4244,9 @@ function fdAtencion(){
     const cli=(window._clientes.find(c=>c.rfc===a.rfc)||{}).nombre||a.cliente||a.rfc||'';
     items.push({sev:d!==null&&d<0?0:3,tag:'AVISO',cls:d!==null&&d<0?'bad':'info',t:`${a.descripcion||'Aviso pendiente'}${cli?' · '+cli:''}`,d:a.fechaLimite?`Límite ${fmtFechaCorta(a.fechaLimite)}`:'Sin fecha límite',ord:d??999});
   });
+  (window._clientes||[]).forEach(c=>{ fkListasDespues(c).forEach(x=>{
+    items.push({sev:0,tag:'69-B / 49 BIS',cls:'bad',t:`${c.nombre} · ${MF[x.mes-1]} ${x.anio}`,d:fkTextoListas(x),ord:-2});
+  }); });
   (window._clientes||[]).forEach(c=>{ fkCPsPendientes(c).forEach(x=>{
     items.push({sev:0,tag:'COMPLEMENTO',cls:'warn',t:`${c.nombre} · ${MF[x.mes-1]} ${x.anio}`,d:fkTextoCP(x),ord:-1});
   }); });
@@ -4143,6 +4285,7 @@ function renderCierre(){
   const COL=[
     {k:'desc',n:'Descargar',color:'#8A97AD'},
     {k:'calc',n:'Calcular',color:'#4A86D9'},
+    {k:'val',n:'Validar',color:'#D9822B'},
     {k:'pres',n:'Presentar',color:'#7C6BD6'},
     {k:'term',n:'Terminado',color:'#1D9E75'},
   ];
